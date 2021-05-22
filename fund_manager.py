@@ -15,6 +15,7 @@ import execjs
 import json
 from tqdm import tqdm
 import math
+import numpy as np
 
 # http://fund.eastmoney.com/005296.html
 # url1 = 'https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&secids=1.000001,0.399001&invt=2&fields=f2,f3,f4,f6,f12,f104,f105,f106&ut=267f9ad526dbe6b0262ab19316f5a25b&cb=jQuery18307458225946461923_1621588092653&_=1621588092705'
@@ -177,7 +178,7 @@ class Fund_manager():
         # print(0)
         return All_INFO
 
-    def updata_Cares_VIP(self, query_list, file_name, sheet_name):
+    def updata_Cares_VIP(self, query_list, file_name):
         infor1 = {}
         print("正在爬取第一部分数据……")
         for i in tqdm(range(len(query_list))):
@@ -226,32 +227,184 @@ class Fund_manager():
              '日增长率-收盘(%)']]
         # 转换数据类型
         # df3[['成立时间','当前日期']] = df3[['成立时间','当前日期']].apply(pd.to_datetime)
-        try:
-            results_Vip[
-                ['规模(亿)', '基金净值', '当日估值', '估值增长(%)', '当日单位净值', '日增长率-收盘(%)', '近1周涨幅(%)', '近1月涨幅(%)', '近3月涨幅(%)',
-                 '近6月涨幅(%)', '任职回报率(%)', '年均回报率(%)',
-                 '近1年涨幅(%)', '近3年涨幅(%)', '近5年涨幅(%)', '成立以来涨幅(%)', '近１年最大回撤(%)', '近１年夏普比率', '近１年波动率(%)']].apply(
-                pd.to_numeric)
-        except Exception as e:
-            print(e)
+        # try:
+        #     results_Vip[
+        #         ['规模(亿)', '基金净值', '当日估值', '估值增长(%)', '当日单位净值', '日增长率-收盘(%)', '近1周涨幅(%)', '近1月涨幅(%)', '近3月涨幅(%)',
+        #          '近6月涨幅(%)', '任职回报率(%)', '年均回报率(%)',
+        #          '近1年涨幅(%)', '近3年涨幅(%)', '近5年涨幅(%)', '成立以来涨幅(%)', '近１年最大回撤(%)', '近１年夏普比率', '近１年波动率(%)']].apply(
+        #         pd.to_numeric)
+        # except Exception as e:
+        #     print(e)
 
         # 　下面尝试这计算基金评分
         # self.comp_Score(results_Vip[['规模(亿)', '成立时间', '任职回报率(%)', '任期时长',
         #      '从业时长', '年均回报率(%)', '基金经理等级', '基金评级', '近3年涨幅(%)', '近5年涨幅(%)', '成立以来涨幅(%)', '近１年最大回撤(%)', '近１年夏普比率',
         #      '近１年波动率(%)']])
 
-        results_Vip['score'] = self.comp_Score(results_Vip)
         # 写入数据到文件
-
         try:
             t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             print(t)
-            results_Vip.to_excel(f'OUTPUTS/{file_name}_{t}.xlsx', f'{sheet_name}', index=None, encoding='utf-8')
+            results_Vip.to_excel(f'TEMP/{file_name}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
         print(0)
 
-    def comp_Score(self,df):
+        # results_Vip['score'] = self.comp_Score(df)
+
+    def comp_Score_number(self, file_name):
+        df = pd.read_excel(f'TEMP/{file_name}.xlsx')
+        datas = df
+        data = datas[['编码２', '规模(亿)', '任职回报率(%)', '任期时长',
+                      '从业时长', '年均回报率(%)', '基金经理等级', '基金评级', '近3年涨幅(%)', '近5年涨幅(%)', '成立以来涨幅(%)', '近１年最大回撤(%)',
+                      '近１年夏普比率',
+                      '近１年波动率(%)']]
+        data.columns = ['code', 'size', 'startHBL', 'managedays', 'workdays', 'yearHBL', 'JLlevel',
+                        'JJlevel', 'tyearZF', 'fyearZF', 'startZF', 'HC', 'XP', 'BD']
+        comp = pd.DataFrame()
+
+        def sizeScore(one):
+            if one < 100 and one >= 30:
+                return 3
+            elif (one >= 100 and one < 300) or (one < 30 and one >= 10):
+                return 2
+            else:
+                return 1
+
+        def startHBLScore(one):
+            if one >= 500:
+                return 6
+            elif one >= 300:
+                return 4
+            elif one >= 100:
+                return 2
+            else:
+                return 1
+
+        def workdaysScore(one):
+            if one >= 3000:
+                return 5
+            elif one >= 2000:
+                return 4
+            elif one >= 1000:
+                return 3
+            else:
+                return 1
+
+        def JLlevelScore(one):
+            return one / 2
+
+        def JJlevelScore(one):
+            if math.isnan(one):  # 是空则返回０
+                return 0
+            else:
+                return one/2
+
+        def tyearZFScore(one):
+            if one >= 150:
+                return 6
+            elif one >= 125:
+                return 5
+            elif one >= 100:
+                return 4
+            elif one >= 75:
+                return 3
+            elif one >= 50:
+                return 2
+            else:
+                return 1
+
+        def HCScore(one):
+            if one <= 10:
+                return 5
+            elif one <= 15:
+                return 4
+            elif one <= 20:
+                return 3
+            elif one <= 25:
+                return 2
+            else:
+                return 1
+
+        def XPScore(one):
+            if one >= 3:
+                return 6
+            elif one >= 2.5:
+                return 5
+            elif one >= 2:
+                return 4
+            elif one >= 1.5:
+                return 3
+            elif one >= 1:
+                return 2
+            else:
+                return 1
+
+        def BDScore(one):
+            if one <= 20:
+                return 4
+            elif one <= 25:
+                return 3
+            elif one <= 30:
+                return 2
+            else:
+                return 1
+
+        comp['size'] = pd.Series(map(sizeScore, data['size']))
+        comp['startHBL'] = pd.Series(map(startHBLScore, data['startHBL']))
+        comp['workdays'] = pd.Series(map(workdaysScore, data['workdays']))
+        comp['JLlevel'] = pd.Series(map(JLlevelScore, data['JLlevel']))
+        comp['JJlevel'] = pd.Series(map(JJlevelScore, data['JJlevel']))
+        comp['tyearZF'] = pd.Series(map(tyearZFScore, data['tyearZF']))
+        comp['HC'] = pd.Series(map(HCScore, data['HC']))
+        comp['XP'] = pd.Series(map(XPScore, data['XP']))
+        comp['BD'] = pd.Series(map(BDScore, data['BD']))
+
+        col = comp.columns.tolist()
+        # ['sizeScore', 'startHBLScore', 'yearHBLScore', 'workdaysScore', 'JLlevelScore', 'JJlevelScore',
+        #                 'HCScore', 'BDScore', 'XPScore', 'tyearZFScore']
+        # qz1 = [0.2, 1, 1.5, 0.3, 1.5, 0.7, 0.8, 1, 1, 2]
+        qz2 = [1] * len(comp)  # 等同
+        qz3 = [1,1,3,2,2,7,4,7,3]
+        QZ = qz3
+        QZZ = sum(QZ)
+        score = [0] * len(comp)
+        # score = pd.Series(score_)
+        for i in range(len(comp)):
+            for j in range(len(col)):
+                col_name = col[j]
+                data_a = comp[col_name][i]
+                data_b = QZ[j]
+                score[i] = score[i] + data_a * data_b
+            score[i] = score[i] / QZZ
+
+        df['得分'] = pd.Series(score)
+        df['size'] = comp['size']
+        df['startHBL'] = comp['startHBL']
+        df['workdays'] = comp['workdays']
+        df['JLlevel'] = comp['JLlevel']
+        df['JJlevel'] = comp['JJlevel']
+        df['tyearZF'] = comp['tyearZF']
+        df['HC'] = comp['HC']
+        df['XP'] = comp['XP']
+        df['BD'] = comp['BD']
+        df = df[
+            ['编码１', '名称', '基金类型', '风险等级', '股票重仓', '基金经理', '得分', 'size', 'startHBL', 'workdays', 'JLlevel',
+             'JJlevel', 'tyearZF', 'HC','XP','BD','近1周涨幅(%)','近1月涨幅(%)',
+             '近3月涨幅(%)', '近6月涨幅(%)', '近1年涨幅(%)', '当前日期', '基金净值', '当日估值', '估值增长(%)', '当日单位净值',
+             '日增长率-收盘(%)']]
+        # 写入数据到文件
+        try:
+            t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            print(t)
+            df.to_excel(f'OUTPUTS/{file_name}_{t}.xlsx', '信息', index=None, encoding='utf-8')
+        except Exception as e:
+            print(e)
+        print(0)
+
+    def comp_Score(self, file_name):  # 比例行
+        df = pd.read_excel(f'TEMP/{file_name}.xlsx')
+
         # datas = pd.read_excel("OUTPUTS/基金关注_2021-05-22 14:32:16.xlsx")
         datas = df
         # 提取用于计算评分的数据
@@ -266,11 +419,19 @@ class Fund_manager():
                         'JJlevel', 'tyearZF', 'fyearZF', 'startZF', 'HC', 'XP', 'BD']
 
         # 转换数据类型
-        for col in data:
-            data[col] = pd.to_numeric(data[col],errors = 'coerce')
-        # try:
-        #     data[['code', 'size', 'startHBL', 'managedays', 'workdays', 'yearHBL', 'JLlevel',
-        #                 'JJlevel', 'tyearZF', 'fyearZF', 'startZF', 'HC', 'XP', 'BD']].apply(pd.to_numeric)
+        # tran_data = np.array(data,dtype=np.float)
+        # data = pd.DataFrame(tran_data)
+        # for col in data.columns.tolist():
+        #     for i in range(len(data)):
+        #         value = data[col][i]
+        #         if math.isnan(data[col][i]):
+        #             data[col][i] = 0
+        #     data[col] = data[col].apply(pd.to_numeric)
+        # data[col] = pd.to_numeric(data[col],errors = 'coerce')
+        # data[col] = data[col].apply(lambda x: float(x) if math.isnan(x) else 0)
+
+        # data[['code', 'size', 'startHBL', 'managedays', 'workdays', 'yearHBL', 'JLlevel',
+        #                 'JJlevel', 'tyearZF', 'fyearZF', 'startZF', 'HC', 'XP', 'BD']].apply(lambda  x:float(x) if math.isnan(x) else 0)
         # except Exception as e:
         #     print(e)
         # data['size'].apply(pd.to_numeric)
@@ -364,15 +525,44 @@ class Fund_manager():
                 # print('yes')
                 comp['JJlevelScore'][i] = 0
         # comp['JJlevelScore'] = pd.Series(map(check_nan,comp['JJlevelScore']))
-        comp['final_Score'] = (0.2*comp['sizeScore'] + 1*comp['startHBLScore'] + 1.5*comp['yearHBLScore'] + 0.3*comp[
-            'workdaysScore'] + 1.5*comp[
-                                   'JLlevelScore'] + 0.7* comp['HCScore'] + 0.8*comp['BDScore'] + 1* comp['XPScore'] + 1 *comp[
-                                   'JJlevelScore'] + 2 * comp['tyearZFScore']) / 11
+        col = comp.columns.tolist()
+        # ['sizeScore', 'startHBLScore', 'yearHBLScore', 'workdaysScore', 'JLlevelScore', 'JJlevelScore',
+        #                 'HCScore', 'BDScore', 'XPScore', 'tyearZFScore']
+        qz1 = [0.2, 1, 1.5, 0.3, 1.5, 0.7, 0.8, 1, 1, 2]
+        qz2 = [1, 5, 3, 3, 4, 4, 5, 5, 9, 9]
+        QZ = qz2
+        QZZ = sum(QZ)
+        score = [0] * len(comp)
+        # score = pd.Series(score_)
+        for i in range(len(comp)):
+            for j in range(len(col)):
+                col_name = col[j]
+                data_a = comp[col_name][i]
+                data_b = QZ[j]
+                score[i] = score[i] + data_a * data_b
+            score[i] = score[i] / QZZ
 
-        return comp['final_Score']
+        # comp['final_Score'] = (0.2*comp['sizeScore'] + 1*comp['startHBLScore'] + 1.5*comp['yearHBLScore'] + 0.3*comp[
+        #     'workdaysScore'] + 1.5*comp[
+        #                            'JLlevelScore'] + 0.7* comp['HCScore'] + 0.8*comp['BDScore'] + 1* comp['XPScore'] + 1 *comp[
+        #                            'JJlevelScore'] + 2 * comp['tyearZFScore']) / 11
+
+        # return comp['final_Score']
+        df['score'] = pd.Series(score)
+        df = df[['编码１', '名称', '基金类型', '风险等级', '股票重仓', '基金经理', 'score', '近1周涨幅(%)', '近1月涨幅(%)',
+                 '近3月涨幅(%)', '近6月涨幅(%)', '近1年涨幅(%)', '当前日期', '基金净值', '当日估值', '估值增长(%)', '当日单位净值',
+                 '日增长率-收盘(%)']]
+        # 写入数据到文件
+        try:
+            t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            print(t)
+            df.to_excel(f'OUTPUTS/{file_name}_{t}.xlsx', '信息', index=None, encoding='utf-8')
+        except Exception as e:
+            print(e)
+        print(0)
 
 
 if __name__ == "__main__":
     FM = Fund_manager()
-    FM.updata_Cares_VIP(FM.care_list_zj, '基金关注', 'zhaojing_care')
-    # FM.comp_Score()
+    # FM.updata_Cares_VIP(FM.care_list_zj, '基金关注')
+    FM.comp_Score_number('基金关注')
