@@ -16,6 +16,7 @@ import json
 from tqdm import tqdm
 import math
 import numpy as np
+from Score_Computer import *
 
 # http://fund.eastmoney.com/005296.html
 # url1 = 'https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&secids=1.000001,0.399001&invt=2&fields=f2,f3,f4,f6,f12,f104,f105,f106&ut=267f9ad526dbe6b0262ab19316f5a25b&cb=jQuery18307458225946461923_1621588092653&_=1621588092705'
@@ -39,36 +40,103 @@ user_agent_list = [
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.122 UBrowser/4.0.3214.0 Safari/537.36'
 ]
 
+care_list_zj = {
+    'name': 'zhaojing',
+    'codes': ['100020',
+              '002959',
+              '470058',
+              '001857',
+              '240011',
+              '180012',
+              '260101',
+              '570008',
+              '090018',
+              '100060',
+              '001500',
+              '005918',
+              '001716',
+              '570001',
+              '004997',
+              '519068',
+              '519736',
+              '003095',
+              '001938',
+              '166001',
+              '161725',
+              '162605',
+              '005827',
+              '260108',
+              '163406']}
+
+care_list_dd1 = {
+    'name': 'dd1',
+    'codes': [
+        '003860',
+        '675113',
+        '377240',
+        '217022',
+        '008888',
+        '001630',
+        '005224',
+        '003634',
+        '003547',
+        '009098',
+        '161716',
+        '011854',
+        '008714',
+        '005609',
+        '121012',
+        '009548',
+        '011206',
+        # '968010',
+        '008903',
+        '202003',
+        '519066',
+        '160212',
+        '002379',
+        '160211']
+}
+care_list_dd2 = {
+    'name': 'dd2',
+    'codes': [
+        '161725',
+        '160222',
+        '003095',
+        '000409',
+        # '010378',
+        '001508',
+        '110022',
+        '001076',
+        '000083',
+        '001975',
+        '519772',
+        '005911',
+        '007412',
+        '001606',
+        '001645',
+        '000309',
+        '002259',
+        '206007',
+        '005827',
+        # '010681',
+        '270002',
+        '002851',
+        '690007',
+        # '011223',
+        '160716',
+        '000988',
+        '163415',
+        '519732',
+        '164906',
+        '001179',
+        '450001',
+        '163402']
+}
+
 
 class Fund_manager():
-    def __init__(self):
-        self.care_list_zj = {
-            'name': 'zhaojing',
-            'codes': ['100020',
-                      '002959',
-                      '470058',
-                      '001857',
-                      '240011',
-                      '180012',
-                      '260101',
-                      '570008',
-                      '090018',
-                      '100060',
-                      '001500',
-                      '005918',
-                      '001716',
-                      '570001',
-                      '004997',
-                      '519068',
-                      '519736',
-                      '003095',
-                      '001938',
-                      '166001',
-                      '161725',
-                      '162605',
-                      '005827',
-                      '260108',
-                      '163406']}
+    def __init__(self, care_list):
+        self.care_list = care_list
         self.headers = {'User-Agent': random.choice(user_agent_list), 'Referer': referer_list[0]}  # 每次运行的时候都会重新生成头部
 
     def getUrl(self, fscode):  # 同花顺查询单只基金固定信息
@@ -89,22 +157,18 @@ class Fund_manager():
             url = 'http://fund.10jqka.com.cn/ifindRank/quarter_year_' + code + '.json'
         content = requests.get(url, headers=self.headers).text  # str类型
         jscontent = json.loads(content)
-        rawdata = jscontent['nowCommonTypeRank']
         results = {}
+        try:
+            rawdata = jscontent['nowCommonTypeRank']
+        except Exception as e:
+            print(e)
+            return results
         title = ['fyear', 'tyear', 'twoyear', 'year', 'nowyear', 'hyear', 'tmonth', 'month', 'week']
         for name in title:
             try:
                 results['FR_' + name] = rawdata[name][2]
             except Exception as e:
                 results['FR_' + name] = math.nan
-        # results['FR_tyear'] = rawdata['tyear'][2]
-        # results['FR_twoyear'] = rawdata['twoyear'][2]
-        # results['FR_year'] = rawdata['year'][2]
-        # results['FR_nowyear'] = rawdata['nowyear'][2]
-        # results['FR_hyear'] = rawdata['hyear'][2]
-        # results['FR_tmonth'] = rawdata['tmonth'][2]
-        # results['FR_month'] = rawdata['month'][2]
-        # results['FR_week'] = rawdata['week'][2]
         return results
 
     def getDWJZ(self, fscode):  # 单位净值数据
@@ -211,14 +275,19 @@ class Fund_manager():
         # All_INFO['定投近１年收益(%)']=JJXQ['PTDT_Y'] #暂时把定投数据关闭
         # All_INFO['定投近２年收益(%)']=JJXQ['PTDT_TWY']
         # All_INFO['定投近３年收益(%)']=JJXQ['PTDT_TRY']
-        All_INFO['股票重仓'] = JJCC['InverstPosition']['fundStocks'][0]['GPJC'] + ',' + \
-                           JJCC['InverstPosition']['fundStocks'][1]['GPJC'] + ',' + \
-                           JJCC['InverstPosition']['fundStocks'][2]['GPJC']
+        try:
+            All_INFO['股票重仓'] = JJCC['InverstPosition']['fundStocks'][0]['GPJC'] + ',' + \
+                               JJCC['InverstPosition']['fundStocks'][1]['GPJC'] + ',' + \
+                               JJCC['InverstPosition']['fundStocks'][2]['GPJC']
+        except Exception as e:
+            print(e)
+            All_INFO['股票重仓'] = ''
         # df = pd.DataFrame(All_INFO)
         # print(0)
         return All_INFO
 
-    def updata_Cares_VIP(self, query_list, file_name):
+    def updata_Cares_VIP(self):
+        query_list = self.care_list['codes']
         infor1 = {}
         print("正在爬取第一部分数据……")
         for i in tqdm(range(len(query_list))):
@@ -281,110 +350,161 @@ class Fund_manager():
         try:
             t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             print(t)
-            results_Vip.to_excel(f'Infors/{file_name}.xlsx', '信息', index=None, encoding='utf-8')
+            results_Vip.to_excel(f'Infors/信息汇总_{self.care_list["name"]}.xlsx', '信息', index=None, encoding='utf-8')
+        except Exception as e:
+            print(e)
+        # print(0)
+
+        # results_Vip['score'] = self.comp_Score(df)
+
+    def getManagerScore(self):  # 单独把基金经理的水平算出来
+        df = pd.read_excel(f'Infors/信息汇总_{self.care_list["name"]}.xlsx')
+        datas = df
+        data = datas[['编码１', '任职回报率(%)', '任期时长',
+                      '从业时长', '年均回报率(%)', ]]
+        data.columns = ['code', 'startHBL', 'managedays', 'workdays', 'yearHBL']
+        # data.apply(pd.to_numeric)
+        comp = pd.DataFrame()
+        comp['startHBL'] = pd.Series(map(startHBLScore, data['startHBL']))
+        comp['workdays'] = pd.Series(map(workdaysScore, data['workdays']))
+        comp['yearHBL'] = pd.Series(map(yearHBLScore, data['yearHBL']))
+        # sum score
+        comp['score'] = (comp['startHBL'] + comp['workdays'] + comp['yearHBL']) / 3
+        return comp['score']
+
+    def StartFund_select(self):  # 通过硬性指标筛选好基金。
+        df = pd.read_excel(f'Infors/信息汇总_{self.care_list["name"]}.xlsx')
+        datas = df
+        data = datas[['编码１', '规模(亿)', '成立时间', '近3年涨幅(%)', '近１年最大回撤(%)',
+                      '近１年夏普比率',
+                      '近１年波动率(%)', 'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear',
+                      'FR_tmonth', 'FR_month', 'FR_week', '基金净值', '累计净值1']]
+        data.columns = ['code', 'size', 'startTime', 'tyearZF', 'HC', 'XP', 'BD', 'FR_fyear', 'FR_tyear', 'FR_twoyear',
+                        'FR_year',
+                        'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month', 'FR_week', 'DWJZ', 'LJJZ']
+        comp = pd.DataFrame()
+
+        def Stand_1(size, tyearZF, HC, XP, BD, FR_tyear, FR_year, FR_hyear):
+            if isGood(size, 1, 20) and isGood(tyearZF, 1, 80) and isGood(HC, 0, 25) and isGood(
+                    XP, 1, 1.5) and isGood(BD, 0, 30) and isGood(FR_tyear, 1, 80) and isGood(FR_year, 1, 80) and isGood(
+                FR_hyear, 1, 60):
+                return 1
+            else:
+                return 0
+
+        def Stand_2(size, tyearZF, HC, XP, FR_year):
+            if isGood(size, 1, 20) and isGood(tyearZF, 1, 80) and isGood(HC, 0,
+                                                                         25) and isGood(
+                XP, 1, 1.5) and isGood(FR_year, 1, 80):
+                return 1
+            else:
+                return 0
+
+        def STABLE_1(HC, BD):  # 在稳定波动和回测的情况下，涨幅越大越好
+            if isGood(HC, 0, 10) and isGood(BD, 0, 20):
+                return 1
+            else:
+                return 0
+
+        def STABLE_2(HC, BD):  # 在稳定波动和回测的情况下，涨幅越大越好
+            if isGood(HC, 0, 20) and isGood(BD, 0, 25):
+                return 1
+            else:
+                return 0
+
+        def EXCITED_1(HC, BD, tyearZF):  # 激进
+            if isGood(HC, 1, 25) and isGood(BD, 1, 30) and isGood(tyearZF, 1, 150):
+                return 1
+            else:
+                return 0
+
+        def EXCITED_2(HC, BD, tyearZF):  # 激进
+            if isGood(HC, 1, 20) and isGood(BD, 1, 25) and isGood(tyearZF, 1, 100):
+                return 1
+            else:
+                return 0
+
+        comp['stand_1'] = pd.Series(
+            map(Stand_1, data['size'], data['tyearZF'], data['HC'], data['XP'], data['BD'],
+                data['FR_tyear'], data['FR_year'], data['FR_hyear']))
+        comp['stand_2'] = pd.Series(
+            map(Stand_2, data['size'], data['tyearZF'], data['HC'], data['XP'],
+                data['FR_year']))
+        comp['STABLE_1'] = pd.Series(map(STABLE_1, data['HC'], data['BD']))
+        comp['STABLE_2'] = pd.Series(map(STABLE_2, data['HC'], data['BD']))
+        comp['EXCITED_1'] = pd.Series(map(EXCITED_1, data['HC'], data['BD'], data['tyearZF']))
+        comp['EXCITED_2'] = pd.Series(map(EXCITED_2, data['HC'], data['BD'], data['tyearZF']))
+        return comp
+
+    def getFundScore(self):  # 单独计算基金的指标
+        df = pd.read_excel(f'Infors/信息汇总_{self.care_list["name"]}.xlsx')
+        datas = df
+        data = datas[['编码１', '规模(亿)', '成立时间', '近3年涨幅(%)', '近１年最大回撤(%)',
+                      '近１年夏普比率',
+                      '近１年波动率(%)', 'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear',
+                      'FR_tmonth', 'FR_month', 'FR_week', '基金净值', '累计净值1']]
+        data.columns = ['code', 'size', 'startTime', 'tyearZF', 'HC', 'XP', 'BD', 'FR_fyear', 'FR_tyear', 'FR_twoyear',
+                        'FR_year',
+                        'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month', 'FR_week', 'DWJZ', 'LJJZ']
+
+        FR = pd.DataFrame()
+        FR_list = ['FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
+                   'FR_week']
+
+        FR['score'] = pd.Series(np.zeros(len(data)))
+        for name in FR_list:
+            FR[name] = pd.Series(map(FRScore, data[name]))
+            FR['score'] = FR['score'] + FR[name]
+        FR['score'] = FR['score'] / len(FR_list)
+
+        comp = pd.DataFrame()
+        comp['tyearZF'] = pd.Series(map(tyearZFScore, data['tyearZF']))
+        comp['HC'] = pd.Series(map(HC_justScore, data['tyearZF'], data['HC']))  # 回测校准
+        comp['XP'] = pd.Series(map(XPScore, data['XP']))
+        comp['BD'] = pd.Series(map(BDScore, data['BD']))
+        comp['FR'] = FR['score']
+
+        HC = pd.Series(map(HCScore, data['HC']))  # 标准回测
+        df['Score1'] = (comp['tyearZF'] + comp['HC'] + comp['XP'] + comp['BD'] + comp['FR']) / 5
+        df['Score2'] = (comp['XP'] + comp['tyearZF'] + comp['FR']) / 3
+        df['Score3'] = (comp['XP'] + comp['tyearZF'] + comp['FR'] - HC - comp['BD'])
+        df['经理得分'] = pd.Series(self.getManagerScore())
+        df = pd.concat([df, self.StartFund_select()], axis=1, join="outer")
+        df = df[
+            ['编码１', '名称', '基金类型', '风险等级', '股票重仓', '近3年涨幅(%)','基金经理', '基金经理等级', '经理得分', '基金评级', 'Score1', 'Score2', 'Score3', 'stand_1',
+             'stand_2','STABLE_1','STABLE_2','EXCITED_1','EXCITED_2']]
+        # 写入数据到文件
+        try:
+            t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            print(t)
+            df.to_excel(f'Scores/{self.care_list["name"]}_{t}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
         print(0)
 
-        # results_Vip['score'] = self.comp_Score(df)
-
-    def comp_Score_number(self, file_name):
-        df = pd.read_excel(f'Infors/{file_name}.xlsx')
+    def comp_Score_number(self):
+        df = pd.read_excel(f'Infors/信息汇总_{self.care_list["name"]}.xlsx')
         datas = df
         data = datas[['编码１', '规模(亿)', '任职回报率(%)', '任期时长',
-                      '从业时长', '年均回报率(%)', '基金经理等级', '基金评级', '近3年涨幅(%)', '近5年涨幅(%)', '成立以来涨幅(%)', '近１年最大回撤(%)',
+                      '从业时长', '年均回报率(%)', '基金经理等级', '基金评级', '近3年涨幅(%)', '近１年最大回撤(%)',
                       '近１年夏普比率',
-                      '近１年波动率(%)']]
+                      '近１年波动率(%)', 'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear',
+                      'FR_tmonth', 'FR_month', 'FR_week', '基金净值', '累计净值1']]
         data.columns = ['code', 'size', 'startHBL', 'managedays', 'workdays', 'yearHBL', 'JLlevel',
-                        'JJlevel', 'tyearZF', 'fyearZF', 'startZF', 'HC', 'XP', 'BD']
+                        'JJlevel', 'tyearZF', 'HC', 'XP', 'BD', 'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year',
+                        'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month', 'FR_week', 'DWJZ', 'LJJZ']
+        # data.apply(pd.to_numeric)
         comp = pd.DataFrame()
 
-        def sizeScore(one):
-            if one < 100 and one >= 30:
-                return 3
-            elif (one >= 100 and one < 300) or (one < 30 and one >= 10):
-                return 2
-            else:
-                return 1
+        FR = pd.DataFrame()
+        FR_list = ['FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
+                   'FR_week']
 
-        def startHBLScore(one):
-            if one >= 500:
-                return 6
-            elif one >= 300:
-                return 4
-            elif one >= 100:
-                return 2
-            else:
-                return 1
-
-        def workdaysScore(one):
-            if one >= 3000:
-                return 5
-            elif one >= 2000:
-                return 4
-            elif one >= 1000:
-                return 3
-            else:
-                return 1
-
-        def JLlevelScore(one):
-            return one / 2
-
-        def JJlevelScore(one):
-            if math.isnan(one):  # 是空则返回０
-                return 0
-            else:
-                return one / 2
-
-        def tyearZFScore(one):
-            if one >= 150:
-                return 6
-            elif one >= 125:
-                return 5
-            elif one >= 100:
-                return 4
-            elif one >= 75:
-                return 3
-            elif one >= 50:
-                return 2
-            else:
-                return 1
-
-        def HCScore(one):
-            if one <= 10:
-                return 5
-            elif one <= 15:
-                return 4
-            elif one <= 20:
-                return 3
-            elif one <= 25:
-                return 2
-            else:
-                return 1
-
-        def XPScore(one):
-            if one >= 3:
-                return 6
-            elif one >= 2.5:
-                return 5
-            elif one >= 2:
-                return 4
-            elif one >= 1.5:
-                return 3
-            elif one >= 1:
-                return 2
-            else:
-                return 1
-
-        def BDScore(one):
-            if one <= 20:
-                return 4
-            elif one <= 25:
-                return 3
-            elif one <= 30:
-                return 2
-            else:
-                return 1
+        FR['score'] = pd.Series(np.zeros(len(data)))
+        for name in FR_list:
+            FR[name] = pd.Series(map(FRScore, data[name]))
+            FR['score'] = FR['score'] + FR[name]
+        FR['score'] = FR['score'] / len(FR_list)
 
         comp['size'] = pd.Series(map(sizeScore, data['size']))
         comp['startHBL'] = pd.Series(map(startHBLScore, data['startHBL']))
@@ -392,51 +512,49 @@ class Fund_manager():
         comp['JLlevel'] = pd.Series(map(JLlevelScore, data['JLlevel']))
         comp['JJlevel'] = pd.Series(map(JJlevelScore, data['JJlevel']))
         comp['tyearZF'] = pd.Series(map(tyearZFScore, data['tyearZF']))
-        comp['HC'] = pd.Series(map(HCScore, data['HC']))
+        # comp['HC'] = pd.Series(map(HCScore, data['HC']))
+        comp['HC'] = pd.Series(map(HC_justScore, data['tyearZF'], data['HC']))  # 回测校准
         comp['XP'] = pd.Series(map(XPScore, data['XP']))
         comp['BD'] = pd.Series(map(BDScore, data['BD']))
+        comp['FR'] = FR['score']
+        comp['JZ'] = pd.Series(map(DWJZ_LJJZScore, data['DWJZ'], data['LJJZ']))
 
         col = comp.columns.tolist()
-        # ['sizeScore', 'startHBLScore', 'yearHBLScore', 'workdaysScore', 'JLlevelScore', 'JJlevelScore',
-        #                 'HCScore', 'BDScore', 'XPScore', 'tyearZFScore']
-        # qz1 = [0.2, 1, 1.5, 0.3, 1.5, 0.7, 0.8, 1, 1, 2]
-        qz2 = [1] * len(comp)  # 等同
-        qz3 = [1, 1, 3, 2, 2, 7, 4, 7, 3]
-        qz4 = [1, 2, 1, 2, 2, 4, 0.5, 1, 0.5]  # 3年及以上投资期限，以半年为操作单位
-        qz5 = [1, 1, 1, 1.5, 2, 1, 1.5, 2, 1.5]  # 1~3年投资期限，以月为操作单位
-        qz6 = [0.5, 1, 0.5, 1, 2, 0.5, 2, 2, 2]  # 1年投资期限，以周为操作单
-        QZ = qz6
-        QZZ = sum(QZ)
-        score = [0] * len(comp)
-        # score = pd.Series(score_)
-        for i in range(len(comp)):
-            for j in range(len(col)):
-                col_name = col[j]
-                data_a = comp[col_name][i]
-                data_b = QZ[j]
-                score[i] = score[i] + data_a * data_b
-            score[i] = score[i] / QZZ
 
-        df['得分'] = pd.Series(score)
-        df['size'] = comp['size']
-        df['startHBL'] = comp['startHBL']
-        df['workdays'] = comp['workdays']
-        df['JLlevel'] = comp['JLlevel']
-        df['JJlevel'] = comp['JJlevel']
-        df['tyearZF'] = comp['tyearZF']
-        df['HC'] = comp['HC']
-        df['XP'] = comp['XP']
-        df['BD'] = comp['BD']
+        QZ_set = {
+            'qz1': [0.2, 1, 1.5, 0.3, 1.5, 0.7, 0.8, 1, 1, 2, 2, 2],
+            'qz2': [1] * len(comp),
+            'qz3': [1, 1, 3, 2, 2, 7, 4, 7, 3, 5, 3],
+            '长期投资得分': [1, 2, 1, 2, 2, 4, 0.5, 1, 0.5, 3, 3],  # 3年及以上投资期限，以半年为操作单位
+            '中期投资得分': [1, 1, 1, 1.5, 2, 1, 1.5, 2, 1.5, 2, 3],  # 1~3年投资期限，以月为操作单位
+            '短期投资得分': [0.5, 1, 0.5, 1, 2, 0.5, 2, 2, 2, 2, 3],  # 1年投资期限，以周为操作单
+
+        }
+        Use_QZ_name_list = ['长期投资得分', '中期投资得分', '短期投资得分']
+        # Score_set = {}
+        for QZ_name in Use_QZ_name_list:
+            QZ = QZ_set[QZ_name]  # 得到权重列表
+            QZZ = sum(QZ)
+            score = [0] * len(comp)
+            # score = pd.Series(score_)
+            for i in range(len(comp)):
+                for j in range(len(col)):
+                    col_name = col[j]
+                    data_a = comp[col_name][i]
+                    data_b = QZ[j]
+                    score[i] = score[i] + data_a * data_b
+                score[i] = score[i] / QZZ
+            df[QZ_name] = pd.Series(score)
         df = df[
-            ['编码１', '名称', '基金类型', '风险等级', '股票重仓', '基金经理', '得分', 'size', 'startHBL', 'workdays', 'JLlevel',
-             'JJlevel', 'tyearZF', 'HC', 'XP', 'BD', '近1周涨幅(%)', '近1月涨幅(%)',
-             '近3月涨幅(%)', '近6月涨幅(%)', '近1年涨幅(%)', '当前日期', '基金净值', '当日估值', '估值增长(%)', '当日单位净值',
-             '日增长率-收盘(%)']]
+            ['编码１', '名称', '基金类型', '风险等级', '股票重仓', '基金经理', '规模(亿)', '任职回报率(%)', '任期时长',
+             '从业时长', '年均回报率(%)', '基金经理等级', '基金评级', '近3年涨幅(%)', '近１年最大回撤(%)',
+             '近１年夏普比率',
+             '近１年波动率(%)', '长期投资得分', '中期投资得分', '短期投资得分']]
         # 写入数据到文件
         try:
             t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             print(t)
-            df.to_excel(f'Scores/{file_name}_{t}.xlsx', '信息', index=None, encoding='utf-8')
+            df.to_excel(f'Scores/{self.care_list["name"]}_{t}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
         print(0)
@@ -602,7 +720,7 @@ class Fund_manager():
 
 
 if __name__ == "__main__":
-    FM = Fund_manager()
-    FM.updata_Cares_VIP(FM.care_list_zj['codes'], FM.care_list_zj['name'])
-    FM.comp_Score_number(FM.care_list_zj['name'])
-    # FM.getFourRank('163406')
+    FM = Fund_manager(care_list_zj)
+    # FM.updata_Cares_VIP()
+    # FM.comp_Score_number()
+    FM.getFundScore()
