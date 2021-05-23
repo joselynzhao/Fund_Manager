@@ -5,6 +5,8 @@ __pycache__/
 .xlsx
 OUTPUTS/
 TEMP/
+Infors/
+Scores/
 
 # C extensions
 *.so

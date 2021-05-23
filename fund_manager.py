@@ -42,32 +42,33 @@ user_agent_list = [
 
 class Fund_manager():
     def __init__(self):
-        self.care_list_zj = ['100020',
-                             '002959',
-                             '470058',
-                             '001857',
-                             '240011',
-                             '180012',
-                             '260101',
-                             '570008',
-                             '090018',
-                             '100060',
-                             '001500',
-                             '005918',
-                             '001716',
-                             '570001',
-                             '004997',
-                             '519068',
-                             '519736',
-                             '003095',
-                             '001938',
-                             '166001',
-                             '161725',
-                             '162605',
-                             '005827',
-                             '260108',
-                             '163406'
-                             ]
+        self.care_list_zj = {
+            'name': 'zhaojing',
+            'codes': ['100020',
+                      '002959',
+                      '470058',
+                      '001857',
+                      '240011',
+                      '180012',
+                      '260101',
+                      '570008',
+                      '090018',
+                      '100060',
+                      '001500',
+                      '005918',
+                      '001716',
+                      '570001',
+                      '004997',
+                      '519068',
+                      '519736',
+                      '003095',
+                      '001938',
+                      '166001',
+                      '161725',
+                      '162605',
+                      '005827',
+                      '260108',
+                      '163406']}
         self.headers = {'User-Agent': random.choice(user_agent_list), 'Referer': referer_list[0]}  # 每次运行的时候都会重新生成头部
 
     def getUrl(self, fscode):  # 同花顺查询单只基金固定信息
@@ -77,6 +78,45 @@ class Fund_manager():
             print(e)
             code = str(fscode)  # 转换为ｓｔｒ格式
             return 'http://fund.10jqka.com.cn/data/client/myfund/' + code
+
+    def getFourRank(self, fscode):  # 获得四分位排名
+        url = ''
+        try:
+            url = 'http://fund.10jqka.com.cn/ifindRank/quarter_year_' + fscode + '.json'
+        except Exception as e:
+            print(e)
+            code = str(fscode)  # 转换为ｓｔｒ格式
+            url = 'http://fund.10jqka.com.cn/ifindRank/quarter_year_' + code + '.json'
+        content = requests.get(url, headers=self.headers).text  # str类型
+        jscontent = json.loads(content)
+        rawdata = jscontent['nowCommonTypeRank']
+        results = {}
+        title = ['fyear', 'tyear', 'twoyear', 'year', 'nowyear', 'hyear', 'tmonth', 'month', 'week']
+        for name in title:
+            try:
+                results['FR_' + name] = rawdata[name][2]
+            except Exception as e:
+                results['FR_' + name] = math.nan
+        # results['FR_tyear'] = rawdata['tyear'][2]
+        # results['FR_twoyear'] = rawdata['twoyear'][2]
+        # results['FR_year'] = rawdata['year'][2]
+        # results['FR_nowyear'] = rawdata['nowyear'][2]
+        # results['FR_hyear'] = rawdata['hyear'][2]
+        # results['FR_tmonth'] = rawdata['tmonth'][2]
+        # results['FR_month'] = rawdata['month'][2]
+        # results['FR_week'] = rawdata['week'][2]
+        return results
+
+    def getDWJZ(self, fscode):  # 单位净值数据
+        url = 'http://fund.10jqka.com.cn/163406/json/jsondwjz.json'  # 单位净值数据、
+        url = 'http://fund.10jqka.com.cn/163406/json/jsonljjz.json'  # 累计净值数据、
+        url = 'http://fund.10jqka.com.cn/163406/json/jsonfqjz.json'  # 收益
+        try:
+            url = 'http://fund.10jqka.com.cn/ifindRank/quarter_year_' + fscode + '.json'
+        except Exception as e:
+            print(e)
+            code = str(fscode)  # 转换为ｓｔｒ格式
+            url = 'http://fund.10jqka.com.cn/ifindRank/quarter_year_' + code + '.json'
 
     def getWorth_infor1(self, fscode):  # 根据Ｕrl返回请的文本，格式是字典类型。　
         # 同花顺上的单只基金页面信息
@@ -192,16 +232,24 @@ class Fund_manager():
             code = query_list[i]
             data3 = self.getInfo_fromApp(code)
             infor3[code] = data3
+        print("正在爬取第四部分数据……")
+        infor4 = {}
+        for i in tqdm(range(len(query_list))):
+            code = query_list[i]
+            data4 = self.getFourRank(code)
+            infor4[code] = data4
         df1 = pd.DataFrame(infor1)
         df2 = pd.DataFrame(infor2)
         df3 = pd.DataFrame(infor3)
+        df4 = pd.DataFrame(infor4)
         df1 = df1.transpose()
         df2 = df2.transpose()
         df3 = df3.transpose()
+        df4 = df4.transpose()
 
         df2 = df2[['code', 'date', 'preprice', 'price', 'priceRate', 'rate']]
         df2[['code']] = df2[['code']].astype(str)
-        df1 = df1[['code', 'name', 'asset', 'clrq', 'levelOfRisk', 'manager', 'maxStar', 'net', 'orgname',
+        df1 = df1[['code', 'name', 'asset', 'clrq', 'levelOfRisk', 'manager', 'maxStar', 'net', 'totalnet1', 'orgname',
                    'sgstat',
                    'shstat', 'week', 'month', 'tmonth', 'hyear', 'year', 'tyear']]  # 取出我要用的数据
         df1[['code']] = df1[['code']].astype(str)
@@ -210,42 +258,30 @@ class Fund_manager():
         results = pd.concat([df1, df2], axis=1, join='outer')
         results = results[
             ['code', 'name', 'asset', 'clrq', 'levelOfRisk', 'manager', 'maxStar', 'orgname', 'sgstat',
-             'shstat', 'date', 'preprice', 'price', 'priceRate', 'net', 'rate', 'week', 'month', 'tmonth', 'hyear',
+             'shstat', 'date', 'preprice', 'price', 'priceRate', 'net', 'rate', 'totalnet1', 'week', 'month', 'tmonth',
+             'hyear',
              'year', 'tyear']]
         # 对ｃｏｌ进行重命名
         results.columns = ['编码１', '编码２', '名称', '规模(亿)', '成立时间', '风险等级', '基金经理', '基金评级', '基金公司', '申购状态',
-                           '赎回状态', '当前日期', '基金净值', '当日估值', '估值增长(%)', '当日单位净值', '日增长率-收盘(%)', '近1周涨幅(%)', '近1月涨幅(%)',
+                           '赎回状态', '当前日期', '基金净值', '当日估值', '估值增长(%)', '当日单位净值', '日增长率-收盘(%)', '累计净值1', '近1周涨幅(%)',
+                           '近1月涨幅(%)',
                            '近3月涨幅(%)', '近6月涨幅(%)', '近1年涨幅(%)', '近3年涨幅(%)']
 
-        results_Vip = pd.concat([results, df3], axis=1, join='outer')
-        # 调整columns顺序
+        results_Vip = pd.concat([results, df3, df4], axis=1, join='outer')
+        # 调整columns顺序　和选择
         results_Vip = results_Vip[
-            ['编码１', '编码２', '名称', '基金类型', '风险等级', '股票重仓', '基金经理', '任期起点', '基金公司', '规模(亿)', '成立时间', '任职回报率(%)', '任期时长',
+            ['编码１', '名称', '基金类型', '风险等级', '股票重仓', '基金经理', '任期起点', '基金公司', '规模(亿)', '成立时间', '任职回报率(%)', '任期时长',
              '从业时长', '年均回报率(%)', '基金经理等级', '基金评级', '近3年涨幅(%)', '近5年涨幅(%)', '成立以来涨幅(%)', '近１年最大回撤(%)', '近１年夏普比率',
-             '近１年波动率(%)', '近1周涨幅(%)', '近1月涨幅(%)',
+             '近１年波动率(%)', 'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth',
+             'FR_month', 'FR_week', '近1周涨幅(%)', '近1月涨幅(%)',
              '近3月涨幅(%)', '近6月涨幅(%)', '近1年涨幅(%)', '申购状态', '赎回状态', '当前日期', '基金净值', '当日估值', '估值增长(%)', '当日单位净值',
-             '日增长率-收盘(%)']]
-        # 转换数据类型
-        # df3[['成立时间','当前日期']] = df3[['成立时间','当前日期']].apply(pd.to_datetime)
-        # try:
-        #     results_Vip[
-        #         ['规模(亿)', '基金净值', '当日估值', '估值增长(%)', '当日单位净值', '日增长率-收盘(%)', '近1周涨幅(%)', '近1月涨幅(%)', '近3月涨幅(%)',
-        #          '近6月涨幅(%)', '任职回报率(%)', '年均回报率(%)',
-        #          '近1年涨幅(%)', '近3年涨幅(%)', '近5年涨幅(%)', '成立以来涨幅(%)', '近１年最大回撤(%)', '近１年夏普比率', '近１年波动率(%)']].apply(
-        #         pd.to_numeric)
-        # except Exception as e:
-        #     print(e)
-
-        # 　下面尝试这计算基金评分
-        # self.comp_Score(results_Vip[['规模(亿)', '成立时间', '任职回报率(%)', '任期时长',
-        #      '从业时长', '年均回报率(%)', '基金经理等级', '基金评级', '近3年涨幅(%)', '近5年涨幅(%)', '成立以来涨幅(%)', '近１年最大回撤(%)', '近１年夏普比率',
-        #      '近１年波动率(%)']])
+             '日增长率-收盘(%)', '累计净值1']]
 
         # 写入数据到文件
         try:
             t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             print(t)
-            results_Vip.to_excel(f'TEMP/{file_name}.xlsx', '信息', index=None, encoding='utf-8')
+            results_Vip.to_excel(f'Infors/{file_name}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
         print(0)
@@ -253,9 +289,9 @@ class Fund_manager():
         # results_Vip['score'] = self.comp_Score(df)
 
     def comp_Score_number(self, file_name):
-        df = pd.read_excel(f'TEMP/{file_name}.xlsx')
+        df = pd.read_excel(f'Infors/{file_name}.xlsx')
         datas = df
-        data = datas[['编码２', '规模(亿)', '任职回报率(%)', '任期时长',
+        data = datas[['编码１', '规模(亿)', '任职回报率(%)', '任期时长',
                       '从业时长', '年均回报率(%)', '基金经理等级', '基金评级', '近3年涨幅(%)', '近5年涨幅(%)', '成立以来涨幅(%)', '近１年最大回撤(%)',
                       '近１年夏普比率',
                       '近１年波动率(%)']]
@@ -298,7 +334,7 @@ class Fund_manager():
             if math.isnan(one):  # 是空则返回０
                 return 0
             else:
-                return one/2
+                return one / 2
 
         def tyearZFScore(one):
             if one >= 150:
@@ -365,8 +401,11 @@ class Fund_manager():
         #                 'HCScore', 'BDScore', 'XPScore', 'tyearZFScore']
         # qz1 = [0.2, 1, 1.5, 0.3, 1.5, 0.7, 0.8, 1, 1, 2]
         qz2 = [1] * len(comp)  # 等同
-        qz3 = [1,1,3,2,2,7,4,7,3]
-        QZ = qz3
+        qz3 = [1, 1, 3, 2, 2, 7, 4, 7, 3]
+        qz4 = [1, 2, 1, 2, 2, 4, 0.5, 1, 0.5]  # 3年及以上投资期限，以半年为操作单位
+        qz5 = [1, 1, 1, 1.5, 2, 1, 1.5, 2, 1.5]  # 1~3年投资期限，以月为操作单位
+        qz6 = [0.5, 1, 0.5, 1, 2, 0.5, 2, 2, 2]  # 1年投资期限，以周为操作单
+        QZ = qz6
         QZZ = sum(QZ)
         score = [0] * len(comp)
         # score = pd.Series(score_)
@@ -390,20 +429,20 @@ class Fund_manager():
         df['BD'] = comp['BD']
         df = df[
             ['编码１', '名称', '基金类型', '风险等级', '股票重仓', '基金经理', '得分', 'size', 'startHBL', 'workdays', 'JLlevel',
-             'JJlevel', 'tyearZF', 'HC','XP','BD','近1周涨幅(%)','近1月涨幅(%)',
+             'JJlevel', 'tyearZF', 'HC', 'XP', 'BD', '近1周涨幅(%)', '近1月涨幅(%)',
              '近3月涨幅(%)', '近6月涨幅(%)', '近1年涨幅(%)', '当前日期', '基金净值', '当日估值', '估值增长(%)', '当日单位净值',
              '日增长率-收盘(%)']]
         # 写入数据到文件
         try:
             t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             print(t)
-            df.to_excel(f'OUTPUTS/{file_name}_{t}.xlsx', '信息', index=None, encoding='utf-8')
+            df.to_excel(f'Scores/{file_name}_{t}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
         print(0)
 
     def comp_Score(self, file_name):  # 比例行
-        df = pd.read_excel(f'TEMP/{file_name}.xlsx')
+        df = pd.read_excel(f'Infors/{file_name}.xlsx')
 
         # datas = pd.read_excel("OUTPUTS/基金关注_2021-05-22 14:32:16.xlsx")
         datas = df
@@ -564,5 +603,6 @@ class Fund_manager():
 
 if __name__ == "__main__":
     FM = Fund_manager()
-    # FM.updata_Cares_VIP(FM.care_list_zj, '基金关注')
-    FM.comp_Score_number('基金关注')
+    FM.updata_Cares_VIP(FM.care_list_zj['codes'], FM.care_list_zj['name'])
+    FM.comp_Score_number(FM.care_list_zj['name'])
+    # FM.getFourRank('163406')
