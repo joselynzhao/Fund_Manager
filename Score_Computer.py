@@ -116,6 +116,10 @@ def HCScore(one):
 
 
 def HC_justScore(zf, hc):
+    if zf == '--': return 1
+    zf = float(zf)
+    if hc == '--': return 1
+    hc = float(hc)
     return zf / hc / 2
 
 

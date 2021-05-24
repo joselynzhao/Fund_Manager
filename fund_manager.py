@@ -17,6 +17,7 @@ from tqdm import tqdm
 import math
 import numpy as np
 from Score_Computer import *
+from Codes_infor import  *
 
 # http://fund.eastmoney.com/005296.html
 # url1 = 'https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&secids=1.000001,0.399001&invt=2&fields=f2,f3,f4,f6,f12,f104,f105,f106&ut=267f9ad526dbe6b0262ab19316f5a25b&cb=jQuery18307458225946461923_1621588092653&_=1621588092705'
@@ -24,118 +25,13 @@ from Score_Computer import *
 0 上证指数　ｆ104涨　
 '''
 
-referer_list = [
-    'http://fund.10jqka.com.cn/'
-    'http://fund.eastmoney.com/110022.html',
-    'http://fund.eastmoney.com/110023.html',
-    'http://fund.eastmoney.com/',
-    'http://fund.eastmoney.com/110025.html'
-]
-# user_agent列表
-user_agent_list = [
-    'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/21.0.1180.71 Safari/537.1 LBBROWSER',
-    'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; QQDownload 732; .NET4.0C; .NET4.0E)',
-    'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.84 Safari/535.11 SE 2.X MetaSr 1.0',
-    'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Maxthon/4.4.3.4000 Chrome/30.0.1599.101 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.122 UBrowser/4.0.3214.0 Safari/537.36'
-]
-
-care_list_zj = {
-    'name': 'zhaojing',
-    'codes': ['100020',
-              '002959',
-              '470058',
-              '001857',
-              '240011',
-              '180012',
-              '260101',
-              '570008',
-              '090018',
-              '100060',
-              '001500',
-              '005918',
-              '001716',
-              '570001',
-              '004997',
-              '519068',
-              '519736',
-              '003095',
-              '001938',
-              '166001',
-              '161725',
-              '162605',
-              '005827',
-              '260108',
-              '163406']}
-
-care_list_dd1 = {
-    'name': 'dd1',
-    'codes': [
-        '003860',
-        '675113',
-        '377240',
-        '217022',
-        '008888',
-        '001630',
-        '005224',
-        '003634',
-        '003547',
-        '009098',
-        '161716',
-        '011854',
-        '008714',
-        '005609',
-        '121012',
-        '009548',
-        '011206',
-        # '968010',
-        '008903',
-        '202003',
-        '519066',
-        '160212',
-        '002379',
-        '160211']
-}
-care_list_dd2 = {
-    'name': 'dd2',
-    'codes': [
-        '161725',
-        '160222',
-        '003095',
-        '000409',
-        # '010378',
-        '001508',
-        '110022',
-        '001076',
-        '000083',
-        '001975',
-        '519772',
-        '005911',
-        '007412',
-        '001606',
-        '001645',
-        '000309',
-        '002259',
-        '206007',
-        '005827',
-        # '010681',
-        '270002',
-        '002851',
-        '690007',
-        # '011223',
-        '160716',
-        '000988',
-        '163415',
-        '519732',
-        '164906',
-        '001179',
-        '450001',
-        '163402']
-}
 
 
 class Fund_manager():
     def __init__(self, care_list):
+        t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        date = t.split(' ')[0]
+        self.date = date
         self.care_list = care_list
         self.headers = {'User-Agent': random.choice(user_agent_list), 'Referer': referer_list[0]}  # 每次运行的时候都会重新生成头部
 
@@ -222,7 +118,7 @@ class Fund_manager():
         jscontent = json.loads(content_)
         rawdata = jscontent['data']  #
         result = {}
-        print("正在爬取第二部分数据……")
+        print(f"正在为{self.care_list['name']}爬取第二部分数据……")
         for i in tqdm(range(len(query_list))):
             fscode = query_list[i]
             # for fscode in self.care_list:
@@ -289,13 +185,13 @@ class Fund_manager():
     def updata_Cares_VIP(self):
         query_list = self.care_list['codes']
         infor1 = {}
-        print("正在爬取第一部分数据……")
+        print(f"正在为{self.care_list['name']}爬取第一部分数据……")
         for i in tqdm(range(len(query_list))):
             code = query_list[i]
             data1 = self.getWorth_infor1(code)
             infor1[code] = data1
         infor2 = self.getWorth_Valuation_forList(query_list)
-        print("正在爬取第三部分数据……")
+        print(f"正在为{self.care_list['name']}爬取第三部分数据……")
         infor3 = {}
         for i in tqdm(range(len(query_list))):
             code = query_list[i]
@@ -348,17 +244,15 @@ class Fund_manager():
 
         # 写入数据到文件
         try:
-            t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            print(t)
-            results_Vip.to_excel(f'Infors/信息汇总_{self.care_list["name"]}.xlsx', '信息', index=None, encoding='utf-8')
+            results_Vip.to_excel(f'Infors/信息汇总_{self.care_list["name"]}_{self.date}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
         # print(0)
 
         # results_Vip['score'] = self.comp_Score(df)
 
-    def getManagerScore(self):  # 单独把基金经理的水平算出来
-        df = pd.read_excel(f'Infors/信息汇总_{self.care_list["name"]}.xlsx')
+    def getManagerScore(self,df):  # 单独把基金经理的水平算出来
+        # df = pd.read_excel(f'Infors/信息汇总_{self.care_list["name"]}_{self.date}.xlsx')
         datas = df
         data = datas[['编码１', '任职回报率(%)', '任期时长',
                       '从业时长', '年均回报率(%)', ]]
@@ -372,8 +266,8 @@ class Fund_manager():
         comp['score'] = (comp['startHBL'] + comp['workdays'] + comp['yearHBL']) / 3
         return comp['score']
 
-    def StartFund_select(self):  # 通过硬性指标筛选好基金。
-        df = pd.read_excel(f'Infors/信息汇总_{self.care_list["name"]}.xlsx')
+    def StartFund_select(self,df):  # 通过硬性指标筛选好基金。
+        # df = pd.read_excel(f'Infors/信息汇总_{self.care_list["name"]}_{self.date}.xlsx')
         datas = df
         data = datas[['编码１', '规模(亿)', '成立时间', '近3年涨幅(%)', '近１年最大回撤(%)',
                       '近１年夏普比率',
@@ -437,8 +331,9 @@ class Fund_manager():
         return comp
 
     def getFundScore(self):  # 单独计算基金的指标
-        df = pd.read_excel(f'Infors/信息汇总_{self.care_list["name"]}.xlsx')
-        datas = df
+        raw_data = pd.read_excel(f'Infors/信息汇总_{self.care_list["name"]}_{self.date}.xlsx')
+        datas = raw_data
+        df=raw_data
         data = datas[['编码１', '规模(亿)', '成立时间', '近3年涨幅(%)', '近１年最大回撤(%)',
                       '近１年夏普比率',
                       '近１年波动率(%)', 'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear',
@@ -468,16 +363,22 @@ class Fund_manager():
         df['Score1'] = (comp['tyearZF'] + comp['HC'] + comp['XP'] + comp['BD'] + comp['FR']) / 5
         df['Score2'] = (comp['XP'] + comp['tyearZF'] + comp['FR']) / 3
         df['Score3'] = (comp['XP'] + comp['tyearZF'] + comp['FR'] - HC - comp['BD'])
-        df['经理得分'] = pd.Series(self.getManagerScore())
-        df = pd.concat([df, self.StartFund_select()], axis=1, join="outer")
+        df['经理得分'] = pd.Series(self.getManagerScore(raw_data))
+        df = pd.concat([df, self.StartFund_select(raw_data)], axis=1, join="outer")
         df = df[
-            ['编码１', '名称', '基金类型', '风险等级', '股票重仓', '近3年涨幅(%)','基金经理', '基金经理等级', '经理得分', '基金评级', 'Score1', 'Score2', 'Score3', 'stand_1',
-             'stand_2','STABLE_1','STABLE_2','EXCITED_1','EXCITED_2']]
+            ['编码１', '名称', '基金类型', '风险等级', '股票重仓', '基金经理', '基金经理等级', '经理得分', '基金评级', 'Score1', 'Score2', 'Score3', 'stand_1',
+             'stand_2','STABLE_1','STABLE_2','EXCITED_1','EXCITED_2','近3年涨幅(%)','累计净值1','近1周涨幅(%)','近1月涨幅(%)','近3月涨幅(%)','近6月涨幅(%)','基金净值','当日估值','估值增长(%)','当日单位净值','日增长率-收盘(%)']]
+
+        makeRound2_list = ['经理得分','Score1', 'Score2', 'Score3']
+        def keepFloat2(one):
+            return round(one,2)
+        for name in makeRound2_list:
+            df[name] = pd.Series(map(keepFloat2,df[name]))
+            # df[name] = pd.Series(map(round,df[name],2))
         # 写入数据到文件
         try:
-            t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            print(t)
-            df.to_excel(f'Scores/{self.care_list["name"]}_{t}.xlsx', '信息', index=None, encoding='utf-8')
+
+            df.to_excel(f'Scores/{self.care_list["name"]}_{self.date}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
         print(0)
@@ -718,9 +619,35 @@ class Fund_manager():
             print(e)
         print(0)
 
+    def SummarizeAllList(self,list_lsit): # 传入的是list的一个list
+        Score_Sum = pd.DataFrame()
+        # Infor_Sum = pd.DataFrame()
+        for list_name in list_lsit:
+            infor = pd.read_excel(f'Scores/{list_name["name"]}_{self.date}.xlsx')
+            belong = pd.Series([list_name['name']]*len(infor))
+            infor.insert(0,'来源',belong)
+            Score_Sum = pd.concat([Score_Sum,infor],axis=0,join='outer')
+        Score_Sum.sort_values(by='Score1',inplace=True,ascending =False)  # sort
+        try:
+            Score_Sum.to_excel(f'Scores/汇总_{self.date}.xlsx', '信息', index=None, encoding='utf-8')
+        except Exception as e:
+            print(e)
 
 if __name__ == "__main__":
-    FM = Fund_manager(care_list_zj)
+    all_list = [care_list_zj,care_list_dd1,care_list_dd2,guanwang_zj]
+
+    # FM = Fund_manager(guanwang_zj)
     # FM.updata_Cares_VIP()
     # FM.comp_Score_number()
-    FM.getFundScore()
+    # FM.getFundScore() #得到各种分数，稳定？　激进？
+    # FM.SummarizeAllList(all_list) # 把所有分数信息来合成一张表
+
+    # 每日更新内容
+    for cares in all_list:
+        FM = Fund_manager(cares)
+        FM.updata_Cares_VIP() # 更新数据
+        FM.getFundScore()# #得到各种分数，稳定？　激进？
+    FM_s = Fund_manager(care_list_zj)## 把所有分数信息来合成一张表
+    FM_s.SummarizeAllList(all_list)
+
+
