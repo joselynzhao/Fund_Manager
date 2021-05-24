@@ -86,6 +86,14 @@ guanwang_zj ={
     ]
 }
 
+temp_list={
+    'name':'测试',
+    'codes':[
+        '519729',
+        ''
+    ]
+}
+
 care_list_dd1 = {
     'name': 'dd1_持有',
     'codes': [
