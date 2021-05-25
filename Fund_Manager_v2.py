@@ -19,6 +19,7 @@ import math
 import numpy as np
 from Score_Computer import *
 from Codes_infor import *
+import datetime
 
 # http://fund.eastmoney.com/005296.html
 # url1 = 'https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&secids=1.000001,0.399001&invt=2&fields=f2,f3,f4,f6,f12,f104,f105,f106&ut=267f9ad526dbe6b0262ab19316f5a25b&cb=jQuery18307458225946461923_1621588092653&_=1621588092705'
@@ -47,12 +48,13 @@ class Fund_manager():
             FR = pd.Series(self.getFourRank(code))
             TTJJ = pd.Series(self.getWorth_infor1(code))  # 返回很多信息
             THS = pd.Series(self.getInfo_fromApp(code))
+            Water = pd.Series(self.getWaterLevel(code))
             # 　处理获得的数据
             # FR 和同花顺也不需要处理　全选
             TTJJ = TTJJ[['code', 'name', 'asset', 'clrq', 'levelOfRisk', 'manager', 'maxStar', 'totalnet1',
                          'orgname', 'week', 'month', 'tmonth', 'hyear', 'year', 'tyear']]
             code_infor = pd.DataFrame()
-            code_infor = pd.concat([code_infor, FR, TTJJ, THS], axis=0)
+            code_infor = pd.concat([code_infor, FR, TTJJ, THS,Water], axis=0)
             # code_infor.loc['Source'] = col_code_name
             code_infor.columns = [code]
             # get_Infors = get_Infors.append(code_infor,ignore_index=True)
@@ -79,46 +81,54 @@ class Fund_manager():
             'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
             'manageHBL', 'yearHBL',
             'manageDay', 'workDay',
+            'Hwater','water',
         ]]
 
         print(get_Infors.columns.tolist())
+
+        # 获取数据评分处理
+        comp_in = get_Infors[['FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month', 'FR_week',
+            'asset', 'totalnet1','DWJZ', 'HC', 'XP', 'BD',
+            'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
+            'manageHBL', 'yearHBL','manageDay', 'workDay']].apply(pd.to_numeric,errors ='ignore')
+        # raw_data = pd.read_excel(f'Infors/信息汇总_{self.date}_{input_file_name}.xlsx')
+        comp_out = self.getFundScore(comp_in)
+        # code_list = get_Infors['code']
+        # comp_out['code'] = code_list
+        comp_out.set_index(get_Infors['code'], inplace=True)
+
+        makeRound2_list = ['S_JL','S_zq','S_zd','S_zs']
+        def keepFloat2(one):
+            return round(one, 2)
+        for name in makeRound2_list:
+            # comp_out[name] = pd.Series(map(keepFloat2, comp_out[name]))
+            comp_out[name] = round(comp_out[name],2)
+            # comp_out[name] = pd.Series(map(lambda x: '%.3f' % x,comp_out[name]))
+        # 写入数据到文件
+        get_Infors = pd.concat([get_Infors,comp_out],axis=1)
         try:
             get_Infors.to_excel(f'Infors/信息汇总_{self.date}_{input_file_name}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
-
-        # 获取数据评分处理
-        comp_infor = get_Infors[['FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month', 'FR_week',
-            'asset', 'totalnet1','DWJZ', 'HC', 'XP', 'BD',
-            'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
-            'manageHBL', 'yearHBL']].apply(pd.to_numeric,errors ='ignore')
-
-        raw_data = pd.read_excel(f'Infors/信息汇总_{self.date}_{input_file_name}.xlsx')
-        data = self.getFundScore(raw_data)
-        data = data[
-            ['Source', 'code', 'name', 'JJType', 'levelOfRisk', 'GPstock', 'manager', 'JLlevel', 'S_JL', 'maxStar',
-             'S_zq',
-             'S_zd', 'S_zs', 'stand_1',
-             'stand_2', 'STABLE_1', 'STABLE_2', 'EXCITED_1', 'EXCITED_2', 'tyear', 'year', 'hyear', 'tmonth', 'month',
-             'week', 'net', 'totalnet1', 'date', 'preprice', 'price', 'priceRate', 'rate']]
-        data.columns = ['来源', '编码', '名称', '基金类型', '风险等级', '重仓股票', '经理', '经理等级', '经理得分', '基金等级', '债券得分', '主动得分', '指数得分',
-                        'stand_1',
-                        'stand_2', 'STABLE_1', 'STABLE_2', 'EXCITED_1', 'EXCITED_2', 'tyear', 'year', 'hyear', 'tmonth',
-                        'month',
-                        'week', '单位净值', '累计净值', '当前日前', '基金净值', '今日估值', '估值增长', '日增长率']
-        # data[['code '] =
-        makeRound2_list = ['经理得分', '债券得分', '主动得分', '指数得分', 'stand_1',
-                           'stand_2', 'STABLE_1', 'STABLE_2', 'EXCITED_1', 'EXCITED_2']
-
-        def keepFloat2(one):
-            return round(one, 2)
-
-        for name in makeRound2_list:
-            data[name] = pd.Series(map(keepFloat2, data[name]))
-        # 写入数据到文件
+        # ALL_INFOR = get_Infors[[
+        #     'type', 'code', 'name','JJType','maxStar','clrq', 'levelOfRisk', 'manager','JLlevel', 'orgname','GPstock',
+        #     'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month', 'FR_week',
+        #     'asset', 'totalnet1','DWJZ', 'HC', 'XP', 'BD',
+        #     'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
+        #     'manageHBL', 'yearHBL',
+        #     'manageDay', 'workDay',
+        #     'S_JL', 'S_zq', 'S_zd', 'S_zs',
+        #     'stand_1','stand_2','STABLE_1','STABLE_2','EXCITED_1','EXCITED_2'
+        # ]]
+        SCORE = get_Infors[[
+            'type', 'code', 'name','JJType','maxStar','levelOfRisk', 'manager','JLlevel','S_JL',
+            'totalnet1','DWJZ', 'HC', 'XP', 'BD',
+            'S_zd', 'S_zs', 'S_zq','Hwater','water',
+            'STA_1','STA_2','STB_1','STB_2','EXC_1','EXC_2',
+            'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear',
+        ]]
         try:
-
-            data.to_excel(f'Scores/汇总_{self.date}_{input_file_name}.xlsx', '信息', index=None, encoding='utf-8')
+            SCORE.to_excel(f'Scores/汇总_{self.date}_{input_file_name}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
 
@@ -149,14 +159,84 @@ class Fund_manager():
 
     def getDWJZ(self, fscode):  # 单位净值数据
         url = 'http://fund.10jqka.com.cn/163406/json/jsondwjz.json'  # 单位净值数据、
-        url = 'http://fund.10jqka.com.cn/163406/json/jsonljjz.json'  # 累计净值数据、
-        url = 'http://fund.10jqka.com.cn/163406/json/jsonfqjz.json'  # 收益
+        # url = 'http://fund.10jqka.com.cn/163406/json/jsonljjz.json'  # 累计净值数据、
+        # url = 'http://fund.10jqka.com.cn/163406/json/jsonfqjz.json'  # 收益
         try:
             url = 'http://fund.10jqka.com.cn/ifindRank/quarter_year_' + fscode + '.json'
         except Exception as e:
             print(e)
             code = str(fscode)  # 转换为ｓｔｒ格式
             url = 'http://fund.10jqka.com.cn/ifindRank/quarter_year_' + code + '.json'
+
+    def getWaterLevel(self,fscode):
+        url = 'http://fund.10jqka.com.cn/'+fscode+'/json/jsonljjz.json'
+        content = requests.get(url, headers=self.headers).text # str类型
+        try:
+            raw_data = content.split('=')[1]
+        except Exception as e:
+            print(e)
+            return {'Hwater': '000 ', 'water': '000'}
+        raw_data = json.loads(raw_data)
+        raw_data = pd.DataFrame(raw_data)
+        try:
+            raw_data.set_index([0],inplace=True)
+        except Exception as e:
+            print(e)
+            return {'Hwater': '000 ','water':'000'}
+        # if len(raw_data)>=400:
+        #     raw_data = raw_data[len(raw_data)-400:]
+        def getday(y, m, d, n):
+            the_date = datetime.datetime(y, m, d)
+            result_date = the_date + datetime.timedelta(days=n)
+            d = result_date.strftime('%Y-%m-%d')
+            d = ''.join(d.split('-'))
+            return d
+        year, month,day = self.date.split('-')
+
+
+        dates = raw_data.index.tolist()
+        today_subDay = 0
+        today = year + month + day
+        while (today not in dates):
+            today_subDay -= 1
+            today = getday(int(year), int(month), int(day), today_subDay)
+
+
+        year_subDay = -366
+        year_date = getday(int(year), int(month), int(day), year_subDay)
+        if int(year_date)-int(dates[0])>6:
+            while (year_date not in dates):
+                year_subDay -= 1
+                year_date = getday(int(year), int(month), int(day), year_subDay)
+            index_year = dates.index(year_date)
+            year_datas = raw_data[index_year:]
+            year_max_value = float(max(year_datas[1]))
+            year_base_value = float(year_datas.loc[year_date])
+            today_value = float(year_datas.loc[today])
+            # hyear_max_index = hyear_datas.index(hyear_max_value)
+            year_water = (today_value - year_base_value) / (year_max_value - year_base_value)
+            year_water = round(year_water, 4)
+        else: year_water = -1000
+
+
+        hyear_subDay = -183
+        hyear_date = getday(int(year),int(month),int(day),hyear_subDay)
+        if int(hyear_date)-int(dates[0])>6:
+            while (hyear_date not in dates):
+                hyear_subDay -= 1
+                hyear_date = getday(int(year), int(month), int(day), hyear_subDay)
+            index_hyear = dates.index(hyear_date)
+            hyear_datas = raw_data[index_hyear:]
+            hyear_max_value = float(max(hyear_datas[1]))
+            hyear_base_value = float(hyear_datas.loc[hyear_date])
+            today_value = float(hyear_datas.loc[today])
+            # hyear_max_index = hyear_datas.index(hyear_max_value)
+            hyear_water = (today_value - hyear_base_value) / (hyear_max_value - hyear_base_value)
+            hyear_water = round(hyear_water,4)
+        else: hyear_water = -1000
+        return {'Hwater':hyear_water, 'water': year_water}
+
+
 
     def getWorth_infor1(self, fscode):  # 根据Ｕrl返回请的文本，格式是字典类型。　
         # 同花顺上的单只基金页面信息
@@ -299,16 +379,16 @@ class Fund_manager():
             else:
                 return 0
 
-        comp['stand_1'] = pd.Series(
+        comp['STA_1'] = pd.Series(
             map(Stand_1, data['asset'], data['tyear'], data['HC'], data['XP'], data['BD'],
                 data['FR_tyear'], data['FR_year'], data['FR_hyear']))
-        comp['stand_2'] = pd.Series(
+        comp['STA_2'] = pd.Series(
             map(Stand_2, data['asset'], data['tyear'], data['HC'], data['XP'],
                 data['FR_year']))
-        comp['STABLE_1'] = pd.Series(map(STABLE_1, data['HC'], data['BD']))
-        comp['STABLE_2'] = pd.Series(map(STABLE_2, data['HC'], data['BD']))
-        comp['EXCITED_1'] = pd.Series(map(EXCITED_1, data['HC'], data['BD'], data['tyear']))
-        comp['EXCITED_2'] = pd.Series(map(EXCITED_2, data['HC'], data['BD'], data['tyear']))
+        comp['STB_1'] = pd.Series(map(STABLE_1, data['HC'], data['BD']))
+        comp['STB_2'] = pd.Series(map(STABLE_2, data['HC'], data['BD']))
+        comp['EXC_1'] = pd.Series(map(EXCITED_1, data['HC'], data['BD'], data['tyear']))
+        comp['EXC_2'] = pd.Series(map(EXCITED_2, data['HC'], data['BD'], data['tyear']))
         return comp
 
     def getFundScore(self, raw_data):  # 单独计算基金的指标
@@ -330,15 +410,15 @@ class Fund_manager():
         comp['FR'] = FR['score']
 
         HC = pd.Series(map(HCScore, data['HC']))  # 标准回测
-        data['S_JL'] = pd.Series(self.getManagerScore(raw_data))
-        data['S_zq'] = (comp['XP'] + comp['HC'] + comp['BD'] + comp['FR'] + data['S_JL'] + comp['tyearZF']) / 6
-        data['S_zd'] = (comp['XP'] - comp['HC'] - comp['BD'] + comp['FR'] + data['S_JL'] + comp['tyearZF']) / 2
-        data['S_zs'] = (comp['XP'] + comp['HC'] + comp['FR'] + comp['tyearZF']) / 4
+        compOut = pd.DataFrame()
+        compOut['S_JL'] = pd.Series(self.getManagerScore(raw_data))
+        compOut['S_zq'] = (comp['XP'] + comp['HC']*2 + comp['BD'] + comp['FR'] + compOut['S_JL'] + comp['tyearZF']) / 7
+        compOut['S_zd'] = (comp['XP']*2 - comp['HC'] - comp['BD'] + comp['FR'] + compOut['S_JL'] + comp['tyearZF']) / 3
+        compOut['S_zs'] = (comp['XP'] + comp['HC'] + comp['FR'] + comp['tyearZF']) / 4
         # data['Score1'] = (comp['tyearZF'] + comp['HC'] + comp['XP'] + comp['BD'] + comp['FR']) / 5
         # data['Score2'] = (comp['XP'] + comp['tyearZF'] + comp['FR']) / 3
         # data['Score3'] = (comp['XP'] + comp['tyearZF'] + comp['FR'] - HC - comp['BD'])
-
-        data = pd.concat([data, self.StartFund_select(raw_data)], axis=1, join="outer")
+        compOut = pd.concat([compOut, self.StartFund_select(raw_data)], axis=1, join="outer")
         # print(data.columns.tolist())
 
         # colll = ['FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
@@ -348,13 +428,13 @@ class Fund_manager():
         #          'Source', 'date', 'preprice', 'price', 'priceRate', 'rate', 'S_JL', 'S_zq', 'S_zd', 'S_zs', 'stand_1',
         #          'stand_2', 'STABLE_1', 'STABLE_2', 'EXCITED_1', 'EXCITED_2']
 
-        return data
+        return compOut
 
         # print(0)
 
 
 if __name__ == "__main__":
     FM = Fund_manager()
-    # FM.Runscore(['持有zj','关注zj'])
     FM.Runscore('zj_codes')
-    # FM.Runscore(['测试'])
+    # FM.getWaterLevel('160632')
+
