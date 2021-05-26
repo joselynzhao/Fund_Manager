@@ -8,7 +8,6 @@
 # @Desc    :　修改了读取文件的格式。
 
 
-
 import requests
 import random
 import time
@@ -64,19 +63,17 @@ class Fund_manager():
         # 一次行抓取最后一部分数据
         get_Infors = get_Infors.transpose()
         codes_infor.set_index(['code'], inplace=True)
-        # query_list = list(get_Infors['code'])
-        # print(query_list)
         value_infor = pd.DataFrame(self.getWorth_Valuation_forList(query_codes))
         value_infor = value_infor[['priceRate']]
-        get_Infors = pd.concat([codes_infor, get_Infors,value_infor], axis=1, join='outer')
+        get_Infors = pd.concat([codes_infor, get_Infors, value_infor], axis=1, join='outer')
 
         # 总共取这些数据
         get_Infors = get_Infors[[
-             'code','type', 'name', 'JJType', 'maxStar', 'clrq', 'levelOfRisk', 'manager', 'JLlevel', 'orgname',
+            'code', 'type', 'name', 'JJType', 'maxStar', 'clrq', 'levelOfRisk', 'manager', 'JLlevel', 'orgname',
             'GPstock',
             'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
             'FR_week',
-            'asset', 'totalnet1', 'DWJZ', 'HC', 'XP', 'BD','priceRate',
+            'asset', 'totalnet1', 'DWJZ', 'HC', 'XP', 'BD', 'priceRate',
             'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
             'manageHBL', 'yearHBL',
             'manageDay', 'workDay',
@@ -86,18 +83,20 @@ class Fund_manager():
         print(get_Infors.columns.tolist())
         # 将部分数据转为浮点类型
         get_Infors[[
-            'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month','FR_week',
-            'asset', 'totalnet1', 'DWJZ', 'HC', 'XP', 'BD','priceRate',
+            'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
+            'FR_week',
+            'asset', 'totalnet1', 'DWJZ', 'HC', 'XP', 'BD', 'priceRate',
             'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
             'manageHBL', 'yearHBL',
             'manageDay', 'workDay',
             'Hwater', 'water']] = get_Infors[[
-            'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month','FR_week',
-            'asset', 'totalnet1', 'DWJZ', 'HC', 'XP', 'BD','priceRate',
+            'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
+            'FR_week',
+            'asset', 'totalnet1', 'DWJZ', 'HC', 'XP', 'BD', 'priceRate',
             'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
             'manageHBL', 'yearHBL',
             'manageDay', 'workDay',
-            'Hwater', 'water']].apply(pd.to_numeric,errors = 'ignore')
+            'Hwater', 'water']].apply(pd.to_numeric, errors='ignore')
 
         # 获取数据评分处理
         # comp_in = get_Infors[
@@ -107,55 +106,82 @@ class Fund_manager():
         #      'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
         #      'manageHBL', 'yearHBL', 'manageDay', 'workDay']]
         # raw_data = pd.read_excel(f'Infors/信息汇总_{self.date}_{input_file_name}.xlsx')
-        comp_out = self.getFundScore(get_Infors)
-        # code_list = get_Infors['code']
-        # comp_out['code'] = code_list
+        comp_out = self.getFundScore(get_Infors)  # h获得总分
         comp_out.set_index(get_Infors['code'], inplace=True)
-
-        # makeRound2_list = ['S_JL','S_zq','S_zd','S_zs']
-        # def keepFloat2(one):
-        #     return round(one, 2)
-        # for name in makeRound2_list:
-        #     # comp_out[name] = pd.Series(map(keepFloat2, comp_out[name]))
-        #     comp_out[name] = round(comp_out[name],2)
-        #     # comp_out[name] = pd.Series(map(lambda x: '%.3f' % x,comp_out[name]))
-        # 写入数据到文件
         get_Infors = pd.concat([get_Infors, comp_out], axis=1)
         try:
             get_Infors.to_excel(f'Infors/信息汇总_{self.date}_{input_file_name}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
-        # ALL_INFOR = get_Infors[[
-        #     'type', 'code', 'name','JJType','maxStar','clrq', 'levelOfRisk', 'manager','JLlevel', 'orgname','GPstock',
-        #     'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month', 'FR_week',
-        #     'asset', 'totalnet1','DWJZ', 'HC', 'XP', 'BD',
-        #     'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
-        #     'manageHBL', 'yearHBL',
-        #     'manageDay', 'workDay',
-        #     'S_JL', 'S_zq', 'S_zd', 'S_zs',
-        #     'stand_1','stand_2','STABLE_1','STABLE_2','EXCITED_1','EXCITED_2'
-        # ]]
+
+        OPs = self.getOP(get_Infors)
+        OPs.set_index(get_Infors['code'], inplace=True)
+        get_Infors = pd.concat([get_Infors, OPs], axis=1)
+        # col = ['code', 'type', 'name', 'JJType', 'maxStar', 'clrq', 'levelOfRisk', 'manager', 'JLlevel', 'orgname',
+        #        'GPstock',
+        #        'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
+        #        'FR_week',
+        #        'asset', 'totalnet1', 'DWJZ', 'HC', 'XP', 'BD', 'priceRate', 'week', 'month', 'tmonth', 'hyear', 'year',
+        #        'tyear', 'fyear', 'startZF', 'manageHBL', 'yearHBL', 'manageDay', 'workDay', 'Hwater', 'water']
 
         SCORE = get_Infors[[
-            'code','type', 'name', 'JJType', 'maxStar', 'GPstock', 'manager', 'JLlevel', 'S_JL',
-            'totalnet1', 'DWJZ', 'HC', 'XP', 'BD','RZDF',
-            'STB_up','EXC_~', 'Hwater', 'water',
+            'code','type', 'OPs', 'Score','name', 'JJType', 'maxStar', 'GPstock', 'manager',
+            'HC', 'XP', 'BD', 'Hwater', 'water','priceRate',
             'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear',
         ]]
-        #　主要是根据根数来看操作
+        # 　主要是根据根数来看操作
         # OP_In = get_Infors[['JJType', ]]
         # OP = self.getOP()
+        SCORE.sort_values(by='Score',inplace=True,ascending =False)  # sort
         try:
             SCORE.to_excel(f'Scores/汇总_{self.date}_{input_file_name}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
 
-
         # 试着进行操作指示
 
-    def getOP(self,df):
-        pass
+    def getOP(self, df):
+        Comp = pd.DataFrame()
 
+        def isStable(hc, bd):
+            if hc < 10 and bd < 15:
+                return 1
+            else:
+                return 0
+
+        def isExc(hc, bd):
+            if hc > 20 and bd > 25:
+                return 1
+            else:
+                return 0
+
+        def isUprise(week, month):
+            if week > 1 and month > 4:
+                return 1
+            else:
+                return 0
+
+        def isDown(week):
+            if week < -1:
+                return 1
+            else:
+                return 0
+
+        # Comp['isStable'] = pd.Series(map(isStable, df['HC'],df['BD']))
+        # Comp['isExc'] = pd.Series(map(isExc,df['HC'],df['BD']))
+        # Comp['isUprise'] = pd.Series(map(isUprise,df['week'],df['month']))
+        # Comp['isDown']  = pd.Series(map(isDown,df['week']))
+        def OPs_maker(hc, bd, week, month, preprize, hwater):
+            if hc < 10 and bd < 15 and week > 0 and month > 0: return "稳定上升，持续定投"
+            if hc > 20 and bd > 25 and hwater < 85 and week > 0 and preprize < -1: return "激进上升，今日买入"
+            if hc > 20 and bd > 25 and hwater > 95 and week > 0 and preprize > 1.5: return "激进上升，今日卖出"
+            if hc > 20 and bd > 25 and hwater > 90 and week < 0 and month > 0: return "激进回撤，卖出"
+            if hc > 20 and bd > 25 and week < 0 and hwater < 60: return "基金下跌，持续定投"
+            if hc >= 10 and hc <= 20 and week > 0: return "中等上升，可定投"
+
+        Comp['OPs'] = pd.Series(
+            map(OPs_maker, df['HC'], df['BD'], df['week'], df['month'], df['priceRate'], df['Hwater']))
+        return Comp
 
         # print(0)
 
@@ -256,8 +282,13 @@ class Fund_manager():
             year_max_value = float(max(year_datas[1]))
             year_base_value = float(year_datas.loc[year_date])
             today_value = float(year_datas.loc[today])
-            # hyear_max_index = hyear_datas.index(hyear_max_value)
-            year_water = (today_value - year_base_value) / (year_max_value - year_base_value)
+            if year_max_value != year_base_value:
+                # hyear_max_index = hyear_datas.index(hyear_max_value)
+                year_water = (today_value - year_base_value) / (year_max_value - year_base_value)
+
+            else:
+                year_min_value = float(min(year_datas[1]))
+                year_water = (today_value - year_min_value) / (year_base_value - year_min_value)
             year_water = round(year_water, 4)
         else:
             year_water = -1000
@@ -273,8 +304,12 @@ class Fund_manager():
             hyear_max_value = float(max(hyear_datas[1]))
             hyear_base_value = float(hyear_datas.loc[hyear_date])
             today_value = float(hyear_datas.loc[today])
-            # hyear_max_index = hyear_datas.index(hyear_max_value)
-            hyear_water = (today_value - hyear_base_value) / (hyear_max_value - hyear_base_value)
+            if hyear_max_value != hyear_base_value:
+                # hyear_max_index = hyear_datas.index(hyear_max_value)
+                hyear_water = (today_value - hyear_base_value) / (hyear_max_value - hyear_base_value)
+            else:
+                hyear_min_value = float(min(hyear_datas[1]))
+                hyear_water = (today_value - hyear_min_value) / (hyear_base_value - hyear_min_value)
             hyear_water = round(hyear_water, 4)
         else:
             hyear_water = -1000
@@ -300,12 +335,12 @@ class Fund_manager():
         out_put = pd.DataFrame()
         for i in tqdm(range(len(query_list))):
             code = query_list[i]
-            fscode = 'f'+code
+            fscode = 'f' + code
             try:
                 out_put[code] = raw_data[fscode]
             except Exception as e:
                 print(e)
-                out_put[code] = math.nan #置为空
+                out_put[code] = math.nan  # 置为空
         return out_put.transpose()
 
     def getInfo_fromApp(self, fscode):  # 从天天基金的ａｐｐ上抓取的　　　返回字典
@@ -437,51 +472,42 @@ class Fund_manager():
     def getFundScore(self, raw_data):  # 单独计算基金的指标
         data = raw_data
         FR = pd.DataFrame()
-        FR_list = ['FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
-                   'FR_week']
+        FR_list = ['FR_tyear', 'FR_year', 'FR_hyear', 'FR_month']
         FR['score'] = pd.Series(np.zeros(len(data)))
         for name in FR_list:
             FR[name] = pd.Series(map(FRScore, data[name]))
+            # FR[name] = data[name]/100.0
             FR['score'] = FR['score'] + FR[name]
         FR['score'] = FR['score'] / len(FR_list)
 
-        JJScore = pd.DataFrame() #存储中间变量
+        JJScore = pd.DataFrame()  # 存储中间变量
+
         # consider asset\ clrq\ tyearZF,xp,FR. 将数据全部归一化。
-        def Nor_tyearZF(one): return one/300.0 if one<300 else 1
-        def Nor_xp(one): return one/4.0 if one<4 else 1
-        def Nor_hc(one): return one/40.0 if one<40 else 1
-        def Nor_bd(one):return one/40.0 if one<40 else 1
+        def Nor_tyearZF(one): return one / 300.0 if one < 300 else 1
+
+        def Nor_xp(one): return one / 4.0 if one < 4 else 1
+
+        def Nor_hc(one): return one / 40.0 if one < 40 else 1
+
+        def Nor_bd(one): return one / 40.0 if one < 40 else 1
+
         JJScore['tyearZF'] = pd.Series(map(Nor_tyearZF, data['tyear']))
-        JJScore['HC'] = pd.Series(map(Nor_hc, data['tyear'], data['HC']))  # 回测校准
+        JJScore['HC'] = pd.Series(map(Nor_hc, data['HC']))  # 回测校准
         JJScore['XP'] = pd.Series(map(Nor_xp, data['XP']))
         JJScore['BD'] = pd.Series(map(Nor_bd, data['BD']))
         JJScore['FR'] = FR['score']
+        JJScore['S_JL'] = round(pd.Series(self.getManagerScore(raw_data)), 2)
+        JJScore['Score'] = round(JJScore['tyearZF'] + JJScore['XP'] * 3 + JJScore['FR'] * 2 + JJScore['S_JL'], 2)
 
-        compOut = pd.DataFrame()
-        compOut['S_JL'] = round(pd.Series(self.getManagerScore(raw_data)), 2)
-        # compOut['S_zq'] = round(
-        #     (comp['XP'] + comp['HC'] * 2 + comp['BD'] + comp['FR'] + compOut['S_JL'] + comp['tyearZF']) / 7, 2)
-        # compOut['S_zd'] = round(
-        #     (comp['XP'] * 2 - comp['HC'] - comp['BD'] + comp['FR'] + compOut['S_JL'] + comp['tyearZF']) / 3, 2)
-        # compOut['S_zs'] = round((comp['XP']*2 + comp['HC'] + comp['FR'] + comp['tyearZF']) / ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc 4, 2)
-        compOut['STB_up'] = round((comp['HC_stan']*3 +comp['BD']*2+comp['XP']*2+compOut['S_JL'])/8,2)
-        compOut['EXC_~'] = round((comp['XP']*2-comp['HC_stan']-comp['BD']+compOut['S_JL'])/1,2)
-        # compOut = pd.concat([compOut, self.StartFund_select(raw_data)], axis=1, join="outer")
-        # print(data.columns.tolist())
+        Out = pd.DataFrame()
+        Out['Score'] = JJScore['Score']
 
-        # colll = ['FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
-        #          'FR_week', 'code', 'name', 'asset', 'clrq', 'levelOfRisk', 'manager', 'maxStar', 'net', 'totalnet1',
-        #          'orgname', 'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'JJType', 'fyearZF', 'startZF', 'HC',
-        #          'XP', 'BD', 'manageHBL', 'startManage', 'manageDay', 'workDay', 'yearHBL', 'JLlevel', 'GPstock',
-        #          'Source', 'date', 'preprice', 'price', 'priceRate', 'rate', 'S_JL', 'S_zq', 'S_zd', 'S_zs', 'stand_1',
-        #          'stand_2', 'STABLE_1', 'STABLE_2', 'EXCITED_1', 'EXCITED_2']
-
-        return compOut
+        return Out  # 只想返回这一个值
 
         # print(0)
 
 
 if __name__ == "__main__":
     FM = Fund_manager()
-    FM.Runscore('yuu_codes')
+    FM.Runscore('zj_codes')
     # print(FM.getRZDF('163406'))

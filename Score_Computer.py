@@ -163,10 +163,10 @@ def DWJZ_LJJZScore(dw, lj):
 
 def FRScore(one):
     if one == '--':
-        return 1
+        return 0.1
     one = float(one)
-    if math.isnan(one): return 1
-    return (int(one / 10) + 1) / 2.0
+    if math.isnan(one): return 0.1
+    return one/100.0
 
 '''
 下面通过硬性指标筛选好基金
