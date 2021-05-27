@@ -125,14 +125,14 @@ class Fund_manager():
         #        'tyear', 'fyear', 'startZF', 'manageHBL', 'yearHBL', 'manageDay', 'workDay', 'Hwater', 'water']
 
         SCORE = get_Infors[[
-            'code','type', 'OPs', 'Score','name', 'JJType', 'maxStar', 'GPstock', 'manager',
-            'HC', 'XP', 'BD', 'Hwater', 'water','priceRate',
+            'code', 'type', 'OPs', 'Score','Hwater', 'water', 'priceRate','year', 'name', 'JJType', 'maxStar', 'GPstock', 'manager',
+            'HC', 'XP', 'BD',
             'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear',
         ]]
         # 　主要是根据根数来看操作
         # OP_In = get_Infors[['JJType', ]]
         # OP = self.getOP()
-        SCORE.sort_values(by='Score',inplace=True,ascending =False)  # sort
+        SCORE.sort_values(by='Score', inplace=True, ascending=False)  # sort
         try:
             SCORE.to_excel(f'Scores/汇总_{self.date}_{input_file_name}.xlsx', '信息', index=None, encoding='utf-8')
         except Exception as e:
@@ -171,16 +171,173 @@ class Fund_manager():
         # Comp['isExc'] = pd.Series(map(isExc,df['HC'],df['BD']))
         # Comp['isUprise'] = pd.Series(map(isUprise,df['week'],df['month']))
         # Comp['isDown']  = pd.Series(map(isDown,df['week']))
-        def OPs_maker(hc, bd, week, month, preprize, hwater):
-            if hc < 10 and bd < 15 and week > 0 and month > 0: return "稳定上升，持续定投"
-            if hc > 20 and bd > 25 and hwater < 85 and week > 0 and preprize < -1: return "激进上升，今日买入"
-            if hc > 20 and bd > 25 and hwater > 95 and week > 0 and preprize > 1.5: return "激进上升，今日卖出"
-            if hc > 20 and bd > 25 and hwater > 90 and week < 0 and month > 0: return "激进回撤，卖出"
-            if hc > 20 and bd > 25 and week < 0 and hwater < 60: return "基金下跌，持续定投"
-            if hc >= 10 and hc <= 20 and week > 0: return "中等上升，可定投"
+        def OPs_maker(hc, bd, week, month,tmonth, preprize, hwater, year):
+            # if hc < 10 and bd < 15 and week > 0 and month > 0 and year > 0:
+            #     return "稳定上升，持续定投"
+            # elif hc < 10 and bd < 15 and week < 0 and month < 0:
+            #     return "稳定下跌，建议抛售"
+            # elif hc > 20 and bd > 25 and hwater < 85 and week > 0 and month > 0 and preprize < -1:
+            #     return "激进上升，今日买入"
+            # elif hc > 20 and bd > 25 and hwater > 85 and week > 0 and month > 0 and preprize < -1:
+            #     return "激进上升，高估值，慎买"
+            # elif hc > 20 and bd > 25 and hwater > 85 and week > 0 and month > 0 and preprize > 1:
+            #     return "激进上升，高估值，今日卖出"
+            # elif hc > 20 and bd > 25 and hwater > 85 and week < 0 and month > 0 and preprize > 0:
+            #     return "激进回撤，今日卖出"
+            # elif hc > 20 and bd > 25 and hwater < 85 and week < 0 and preprize < -1:
+            #     return "激进下跌，今日买入"
+            # elif hc > 20 and bd > 25 and hwater < 85 and week > 0 and month > 0 and preprize <1 and preprize >-1:
+            #     return "激进上升，低估值，今日稳定"
+            # elif hc > 20 and bd > 25 and hwater > 85 and week > 0 and month > 0 and preprize <1 and preprize >-1:
+            #     return "激进上升，高估值，今日稳定"
+            # # elif hc > 20 and bd > 25 and hwater < 85 and week < 0 : return "激进下跌，待降买入"
+            # elif hc >= 10 and hc <= 20 and week > 0 and month > 0 and hwater < 85:
+            #     return "中等上升，低估值，可定投"
+            # elif hc >= 10 and hc <= 20 and week > 0 and month > 0 and hwater > 85:
+            #     return "中等上升，高估值，少量定投"
+            # elif hc >= 10 and hc <= 20 and week < 0 and month > 0 and hwater > 85:
+            #     return "中等回撤，卖出或买入"
+            # elif hc >= 10 and hc <= 20 and week < 0 and month < 0 and hwater < 85:
+            #     return "中等下跌，卖出或买入"
+            # else:
+            #     pass
+
+            #version 2
+            # if hc+bd<20:
+            #     if week>0 and month>0 and year>3 :return "稳定上升，可定投"
+            #     if week<0 and month <0 :return "稳定下跌，可抛售"
+            # else:
+            #     if hc <20:#低风险
+            #         if bd < 25 : #不用关注日涨幅
+            #             if week >0 and month>0 : #持续上升阶段
+            #                 if hwater<0.8 : return "低小上升，低估值，可定投"
+            #                 else: return "低小上升，高估值，少定投或卖出"
+            #             if week >0 and month <0: #回升阶段
+            #                 if hwater<0.8 : return "低小回升，低估值，可定投"
+            #                 else: return "低小回升，高估值，少定投"
+            #             if week <0 and month>0 : #回撤阶段
+            #                 if hwater<0.8 : return "低小回撤，低估值，可定投"
+            #                 else: return "低小回撤，高估值，少定投或卖出"
+            #             if week <0 and month<0: # 持续下降阶段
+            #                 if hwater<0.8 : return "低小下跌，低估值，慎定投"
+            #                 else: return "低小下跌，高估值（不会发生）"
+            #         else: #bd >=25 关注日涨幅
+            #             if month >0 and tmonth>0 : #持续上升阶段
+            #                 if hwater<0.8:
+            #                     if preprize >1: return "低大上升，低估值"
+            #                     elif preprize <1 and preprize>-1: return "低大上升，低估值"
+            #                     else:return "低大上升，低估值，今日可买"
+            #                 else:
+            #                     if preprize >1:return "低大上升，高估值，今日可卖"
+            #                     elif preprize <1 and preprize>-1:return "低大上升，高估值"
+            #                     else:"低大上升，高估值，今日慎买"
+            #             if month >0 and tmonth <0: #回升阶段
+            #                 if hwater<0.8:
+            #                     if preprize >1:return "低大回升，低估值"
+            #                     elif preprize <1 and preprize>-1:return "低大回升，低估值"
+            #                     else:return "低大回升，低估值，今日可买"
+            #                 else:return "低大回升，高估值(不发生)"
+            #                     # if preprize >1:return "低大回升，高估值，今日可卖"
+            #                     # elif preprize <1 and preprize>-1:return "低大回升，高估值，今日稳定"
+            #                     # else:return "低大回升，高估值，今日慎买"
+            #             if month <0 and tmonth>0 : #回撤阶段
+            #                 if hwater<0.8:
+            #                     if preprize >1:return "低大回撤，低估值，今日可卖"
+            #                     elif preprize <1 and preprize>-1:return "低大回撤，低估值"
+            #                     else:return "低大回撤，低估值，今日可买"
+            #                 else:
+            #                     if preprize >1:return "低大回撤，高估值，今日可卖"
+            #                     elif preprize <1 and preprize>-1:return "低大回撤，高估值"
+            #                     else:return "低大回撤，高估值，今日慎买"
+            #             if month <0 and tmonth<0: # 持续下降阶段
+            #                 if hwater<0.8:
+            #                     if preprize >1:return "低大下跌，低估值，今日可卖"
+            #                     elif preprize <1 and preprize>-1:return "低大下跌，低估值"
+            #                     else:return "低大下跌，低估值，今日慎买"
+            #                 else:
+            #                     return "低大下跌，高估值（不会发生）"
+            #                     # if preprize >1:
+            #                     # elif preprize <1 and preprize>-1:
+            #                     # else:
+            #     else: # hc>20 高风险　不区分波动，因为波动不会小，关注日涨幅
+            #         if month > 0 and tmonth > 0:  # 持续上升阶段　（卖）
+            #             if hwater < 0.8:
+            #                 if preprize > 1:return "高大上升，低估值"
+            #                 elif preprize < 1 and preprize > -1:return "高大上升，低估值"
+            #                 else:return "高大上升，低估值，今天可买"
+            #             else:
+            #                 if preprize > 1:return "高大上升，高估值，今日可卖"
+            #                 elif preprize < 1 and preprize > -1:return "高大上升，高估值"
+            #                 else:return "高大上升，高估值，今日慎买"
+            #         if month > 0 and tmonth < 0:  # 回升阶段　（买）
+            #             if hwater < 0.8:
+            #                 if preprize > 1:return "高大回升，低估值"
+            #                 elif preprize < 1 and preprize > -1:return "高大回升，低估值"
+            #                 else:return "高大回升，低估值，今日可买"
+            #             else:
+            #                 return "高大回升，高估值（不发生）"
+            #         if month < 0 and tmonth > 0:  # 回撤阶段
+            #             if hwater < 0.8:
+            #                 if preprize > 1:return "高大回撤，低估值"
+            #                 elif preprize < 1 and preprize > -1:return "高大回撤，低估值"
+            #                 else:return "高大回撤，低估值，今日慎买"
+            #             else:
+            #                 if preprize > 1:return "高大回撤，高估值，今日可卖"
+            #                 elif preprize < 1 and preprize > -1:return "高大回撤，高估值"
+            #                 else:return "高大回撤，高估值，今日慎买"
+            #         if month < 0 and tmonth < 0:  # 持续下降阶段
+            #             if hwater < 0.8:
+            #                 if preprize > 1:return "高大下跌，低估值"
+            #                 elif preprize < 1 and preprize > -1:return "高大下跌，低估值"
+            #                 else:return "高大下跌，低估值，今日慎买"
+            #             else:
+            #                 return "高大下跌，高估值（不发生）"
+
+            # version 3
+            if hc+bd <20:
+                if week > 0 and month > 0 and year > 3: return "稳定上升，一次性大量投放"
+                if week < 0 and month < 0: return "稳定下跌，可抛售"
+            else: #非债券类型
+                if hc<20:
+                    if bd<25:
+                        return "低小，大量定投"
+                    else: #bd>=25
+                        if hwater<0.85:
+                            if preprize<-1 or (week<1 and preprize<0.5):return "低大低，定投，今日大份买入"
+                            else:return "低大低，定投"
+                        else:#hwater>=85
+                            if preprize<-1 or (week<1 and preprize<0.5):return "低大高，定投，今日小份买入"
+                            elif preprize >1 or (week >1 and preprize>0.5):return "低大高，定投，今日可卖"
+                            else :return "低大高，定投"
+                else: #hc>=20
+                    if hwater < 0.68:
+                        if preprize < -1 or (week<1 and preprize<0):
+                            return "高大低，定投，今日大份买入"
+                        else:
+                            return "高大低，定投"
+                    elif hwater >= 0.68 and hwater < 0.85:
+                        if month>0 and tmonth>0:
+                            if preprize<-1 or (week<1 and preprize<0.5):return "高大中，上升，今日中份买入"
+                            else: return "高大中，上升"
+                        if month>0 and tmonth<0: #回升
+                            if preprize<-1 or (week<1 and preprize<0.5):return "高大中，回升，今日中份买入"
+                            else: return "高大中，回升"
+                        if month<0 and tmonth>0:# 回撤
+                            if preprize>1 or (week >1 and preprize>0.5):return "高大中，回撤，今日可卖"
+                            else: return "高大中，回撤"
+                        if month<0 and tmonth<0:#下跌
+                            if preprize>1 or (week >1 and preprize>0.5):return "高大中，下跌，今日可卖"
+                            else: return "高大中，下跌"
+                    else:  # hwater>=0.85
+                        if preprize<-1 or (week<1 and preprize<0.5) :return "高大高，今日小份买入"
+                        if preprize>1 or (week >1 and preprize>0.5):return "高大高，今日可卖"
+                        else: return "高大高"
+
+
+
 
         Comp['OPs'] = pd.Series(
-            map(OPs_maker, df['HC'], df['BD'], df['week'], df['month'], df['priceRate'], df['Hwater']))
+            map(OPs_maker, df['HC'], df['BD'], df['week'], df['month'],df['tmonth'], df['priceRate'], df['Hwater'], df['year']))
         return Comp
 
         # print(0)
@@ -509,5 +666,5 @@ class Fund_manager():
 
 if __name__ == "__main__":
     FM = Fund_manager()
-    FM.Runscore('zj_codes')
+    FM.Runscore('zhaojing')
     # print(FM.getRZDF('163406'))
