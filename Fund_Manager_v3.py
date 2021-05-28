@@ -36,8 +36,84 @@ class Fund_manager():
         # self.care_list = care_list
         self.headers = {'User-Agent': random.choice(user_agent_list), 'Referer': referer_list[0]}  # 每次运行的时候都会重新生成头部
 
-    def Runscore(self, input_file_name):  # 制定跑哪几列分数
-        codes_infor = pd.read_excel(f'{input_file_name}.xlsx', dtype=str)  # 全部读取为字符串格式
+    def FindGood(self,no):
+        codesinfor = self.getWorth_Valuation_forFindGood()[no*1000:(no+1)*1000]
+        codesinfor = codesinfor[['priceRate']]
+        codes = codesinfor.index.tolist()
+        get_Infors = pd.DataFrame()
+        for i in tqdm(range(len(codesinfor))):
+            code = codes[i]
+            FR = pd.Series(self.getFourRank(code))
+            TTJJ = pd.Series(self.getWorth_infor1(code))  # 返回很多信息
+            THS = pd.Series(self.getInfo_fromApp(code))
+            Water = pd.Series(self.getWaterLevel(code))
+            TTJJ = TTJJ[['code', 'name', 'asset', 'clrq', 'levelOfRisk', 'manager', 'maxStar', 'totalnet1',
+                         'orgname', 'week', 'month', 'tmonth', 'hyear', 'year', 'tyear']]
+            code_infor = pd.DataFrame()
+            code_infor = pd.concat([code_infor, FR, TTJJ, THS, Water], axis=0)
+            # code_infor.loc['Source'] = col_code_name
+            code_infor.columns = [code]
+            get_Infors = pd.concat([get_Infors, code_infor], axis=1)
+        get_Infors = get_Infors.transpose()
+        get_Infors = pd.concat([get_Infors, codesinfor], axis=1, join='outer')
+        # 总共取这些数据
+        get_Infors = get_Infors[[
+            'code', 'name', 'JJType', 'maxStar', 'clrq', 'levelOfRisk', 'manager', 'JLlevel', 'orgname',
+            'GPstock',
+            'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
+            'FR_week',
+            'asset', 'totalnet1', 'DWJZ', 'HC', 'XP', 'BD', 'priceRate',
+            'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
+            'manageHBL', 'yearHBL',
+            'manageDay', 'workDay',
+            'Hwater', 'water',
+        ]]
+        get_Infors[[
+            'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
+            'FR_week',
+            'asset', 'totalnet1', 'DWJZ', 'HC', 'XP', 'BD', 'priceRate',
+            'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
+            'manageHBL', 'yearHBL',
+            'manageDay', 'workDay',
+            'Hwater', 'water']] = get_Infors[[
+            'FR_fyear', 'FR_tyear', 'FR_twoyear', 'FR_year', 'FR_nowyear', 'FR_hyear', 'FR_tmonth', 'FR_month',
+            'FR_week',
+            'asset', 'totalnet1', 'DWJZ', 'HC', 'XP', 'BD', 'priceRate',
+            'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
+            'manageHBL', 'yearHBL',
+            'manageDay', 'workDay',
+            'Hwater', 'water']].apply(pd.to_numeric, errors='ignore')
+
+        try:
+            get_Infors.to_excel(f'Infors/信息汇总_FindGood{self.date}_{no}.xlsx', '信息', index=None, encoding='utf-8')
+        except Exception as e:
+            print(e)
+
+        comp_out = self.getFundScore(get_Infors)  # h获得总分
+        comp_out.set_index(get_Infors['code'], inplace=True)
+        get_Infors = pd.concat([get_Infors, comp_out], axis=1)
+
+
+        OPs = self.getOP(get_Infors)
+        OPs.set_index(get_Infors['code'], inplace=True)
+        get_Infors = pd.concat([get_Infors, OPs], axis=1)
+        SCORE = get_Infors[[
+            'code', 'OPs', 'Score', 'Hwater', 'water', 'priceRate', 'year', 'name', 'JJType', 'maxStar',
+            'GPstock', 'manager',
+            'HC', 'XP', 'BD',
+            'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear',
+        ]]
+        # 　主要是根据根数来看操作
+        # OP_In = get_Infors[['JJType', ]]
+        # OP = self.getOP()
+        SCORE.sort_values(by='Score', inplace=True, ascending=False)  # sort
+        try:
+            SCORE.to_excel(f'Scores/汇总_FindGood{self.date}_{no}.xlsx', '信息', index=None, encoding='utf-8')
+        except Exception as e:
+            print(e)
+
+    def Runscore(self, input_file_name, sheet_name):  # 制定跑哪几列分数
+        codes_infor = pd.read_excel(f'{input_file_name}.xlsx',f'{sheet_name}', dtype=str)  # 全部读取为字符串格式
 
         query_codes = codes_infor['code']
         query_type = codes_infor['type']
@@ -106,13 +182,15 @@ class Fund_manager():
         #      'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear', 'startZF',
         #      'manageHBL', 'yearHBL', 'manageDay', 'workDay']]
         # raw_data = pd.read_excel(f'Infors/信息汇总_{self.date}_{input_file_name}.xlsx')
+
+        try:
+            get_Infors.to_excel(f'Infors/信息汇总_{self.date}_{input_file_name}_{sheet_name}.xlsx', 'sheet', index=None, encoding='utf-8')
+        except Exception as e:
+            print(e)
+
         comp_out = self.getFundScore(get_Infors)  # h获得总分
         comp_out.set_index(get_Infors['code'], inplace=True)
         get_Infors = pd.concat([get_Infors, comp_out], axis=1)
-        try:
-            get_Infors.to_excel(f'Infors/信息汇总_{self.date}_{input_file_name}.xlsx', '信息', index=None, encoding='utf-8')
-        except Exception as e:
-            print(e)
 
         OPs = self.getOP(get_Infors)
         OPs.set_index(get_Infors['code'], inplace=True)
@@ -125,7 +203,7 @@ class Fund_manager():
         #        'tyear', 'fyear', 'startZF', 'manageHBL', 'yearHBL', 'manageDay', 'workDay', 'Hwater', 'water']
 
         SCORE = get_Infors[[
-            'code', 'type', 'OPs', 'Score','Hwater', 'water', 'priceRate','year', 'name', 'JJType', 'maxStar', 'GPstock', 'manager',
+            'code', 'type', 'OPs', 'Score','Hwater', 'water', 'priceRate','year', 'name', 'JJType', 'GPstock', 'manager',
             'HC', 'XP', 'BD',
             'week', 'month', 'tmonth', 'hyear', 'year', 'tyear', 'fyear',
         ]]
@@ -134,7 +212,7 @@ class Fund_manager():
         # OP = self.getOP()
         SCORE.sort_values(by='Score', inplace=True, ascending=False)  # sort
         try:
-            SCORE.to_excel(f'Scores/汇总_{self.date}_{input_file_name}.xlsx', '信息', index=None, encoding='utf-8')
+            SCORE.to_excel(f'Scores/汇总_{self.date}_{input_file_name}_{sheet_name}.xlsx',  'sheet', index=None, encoding='utf-8')
         except Exception as e:
             print(e)
 
@@ -142,157 +220,7 @@ class Fund_manager():
 
     def getOP(self, df):
         Comp = pd.DataFrame()
-
-        def isStable(hc, bd):
-            if hc < 10 and bd < 15:
-                return 1
-            else:
-                return 0
-
-        def isExc(hc, bd):
-            if hc > 20 and bd > 25:
-                return 1
-            else:
-                return 0
-
-        def isUprise(week, month):
-            if week > 1 and month > 4:
-                return 1
-            else:
-                return 0
-
-        def isDown(week):
-            if week < -1:
-                return 1
-            else:
-                return 0
-
-        # Comp['isStable'] = pd.Series(map(isStable, df['HC'],df['BD']))
-        # Comp['isExc'] = pd.Series(map(isExc,df['HC'],df['BD']))
-        # Comp['isUprise'] = pd.Series(map(isUprise,df['week'],df['month']))
-        # Comp['isDown']  = pd.Series(map(isDown,df['week']))
-        def OPs_maker(hc, bd, week, month,tmonth, preprize, hwater, year):
-            # if hc < 10 and bd < 15 and week > 0 and month > 0 and year > 0:
-            #     return "稳定上升，持续定投"
-            # elif hc < 10 and bd < 15 and week < 0 and month < 0:
-            #     return "稳定下跌，建议抛售"
-            # elif hc > 20 and bd > 25 and hwater < 85 and week > 0 and month > 0 and preprize < -1:
-            #     return "激进上升，今日买入"
-            # elif hc > 20 and bd > 25 and hwater > 85 and week > 0 and month > 0 and preprize < -1:
-            #     return "激进上升，高估值，慎买"
-            # elif hc > 20 and bd > 25 and hwater > 85 and week > 0 and month > 0 and preprize > 1:
-            #     return "激进上升，高估值，今日卖出"
-            # elif hc > 20 and bd > 25 and hwater > 85 and week < 0 and month > 0 and preprize > 0:
-            #     return "激进回撤，今日卖出"
-            # elif hc > 20 and bd > 25 and hwater < 85 and week < 0 and preprize < -1:
-            #     return "激进下跌，今日买入"
-            # elif hc > 20 and bd > 25 and hwater < 85 and week > 0 and month > 0 and preprize <1 and preprize >-1:
-            #     return "激进上升，低估值，今日稳定"
-            # elif hc > 20 and bd > 25 and hwater > 85 and week > 0 and month > 0 and preprize <1 and preprize >-1:
-            #     return "激进上升，高估值，今日稳定"
-            # # elif hc > 20 and bd > 25 and hwater < 85 and week < 0 : return "激进下跌，待降买入"
-            # elif hc >= 10 and hc <= 20 and week > 0 and month > 0 and hwater < 85:
-            #     return "中等上升，低估值，可定投"
-            # elif hc >= 10 and hc <= 20 and week > 0 and month > 0 and hwater > 85:
-            #     return "中等上升，高估值，少量定投"
-            # elif hc >= 10 and hc <= 20 and week < 0 and month > 0 and hwater > 85:
-            #     return "中等回撤，卖出或买入"
-            # elif hc >= 10 and hc <= 20 and week < 0 and month < 0 and hwater < 85:
-            #     return "中等下跌，卖出或买入"
-            # else:
-            #     pass
-
-            #version 2
-            # if hc+bd<20:
-            #     if week>0 and month>0 and year>3 :return "稳定上升，可定投"
-            #     if week<0 and month <0 :return "稳定下跌，可抛售"
-            # else:
-            #     if hc <20:#低风险
-            #         if bd < 25 : #不用关注日涨幅
-            #             if week >0 and month>0 : #持续上升阶段
-            #                 if hwater<0.8 : return "低小上升，低估值，可定投"
-            #                 else: return "低小上升，高估值，少定投或卖出"
-            #             if week >0 and month <0: #回升阶段
-            #                 if hwater<0.8 : return "低小回升，低估值，可定投"
-            #                 else: return "低小回升，高估值，少定投"
-            #             if week <0 and month>0 : #回撤阶段
-            #                 if hwater<0.8 : return "低小回撤，低估值，可定投"
-            #                 else: return "低小回撤，高估值，少定投或卖出"
-            #             if week <0 and month<0: # 持续下降阶段
-            #                 if hwater<0.8 : return "低小下跌，低估值，慎定投"
-            #                 else: return "低小下跌，高估值（不会发生）"
-            #         else: #bd >=25 关注日涨幅
-            #             if month >0 and tmonth>0 : #持续上升阶段
-            #                 if hwater<0.8:
-            #                     if preprize >1: return "低大上升，低估值"
-            #                     elif preprize <1 and preprize>-1: return "低大上升，低估值"
-            #                     else:return "低大上升，低估值，今日可买"
-            #                 else:
-            #                     if preprize >1:return "低大上升，高估值，今日可卖"
-            #                     elif preprize <1 and preprize>-1:return "低大上升，高估值"
-            #                     else:"低大上升，高估值，今日慎买"
-            #             if month >0 and tmonth <0: #回升阶段
-            #                 if hwater<0.8:
-            #                     if preprize >1:return "低大回升，低估值"
-            #                     elif preprize <1 and preprize>-1:return "低大回升，低估值"
-            #                     else:return "低大回升，低估值，今日可买"
-            #                 else:return "低大回升，高估值(不发生)"
-            #                     # if preprize >1:return "低大回升，高估值，今日可卖"
-            #                     # elif preprize <1 and preprize>-1:return "低大回升，高估值，今日稳定"
-            #                     # else:return "低大回升，高估值，今日慎买"
-            #             if month <0 and tmonth>0 : #回撤阶段
-            #                 if hwater<0.8:
-            #                     if preprize >1:return "低大回撤，低估值，今日可卖"
-            #                     elif preprize <1 and preprize>-1:return "低大回撤，低估值"
-            #                     else:return "低大回撤，低估值，今日可买"
-            #                 else:
-            #                     if preprize >1:return "低大回撤，高估值，今日可卖"
-            #                     elif preprize <1 and preprize>-1:return "低大回撤，高估值"
-            #                     else:return "低大回撤，高估值，今日慎买"
-            #             if month <0 and tmonth<0: # 持续下降阶段
-            #                 if hwater<0.8:
-            #                     if preprize >1:return "低大下跌，低估值，今日可卖"
-            #                     elif preprize <1 and preprize>-1:return "低大下跌，低估值"
-            #                     else:return "低大下跌，低估值，今日慎买"
-            #                 else:
-            #                     return "低大下跌，高估值（不会发生）"
-            #                     # if preprize >1:
-            #                     # elif preprize <1 and preprize>-1:
-            #                     # else:
-            #     else: # hc>20 高风险　不区分波动，因为波动不会小，关注日涨幅
-            #         if month > 0 and tmonth > 0:  # 持续上升阶段　（卖）
-            #             if hwater < 0.8:
-            #                 if preprize > 1:return "高大上升，低估值"
-            #                 elif preprize < 1 and preprize > -1:return "高大上升，低估值"
-            #                 else:return "高大上升，低估值，今天可买"
-            #             else:
-            #                 if preprize > 1:return "高大上升，高估值，今日可卖"
-            #                 elif preprize < 1 and preprize > -1:return "高大上升，高估值"
-            #                 else:return "高大上升，高估值，今日慎买"
-            #         if month > 0 and tmonth < 0:  # 回升阶段　（买）
-            #             if hwater < 0.8:
-            #                 if preprize > 1:return "高大回升，低估值"
-            #                 elif preprize < 1 and preprize > -1:return "高大回升，低估值"
-            #                 else:return "高大回升，低估值，今日可买"
-            #             else:
-            #                 return "高大回升，高估值（不发生）"
-            #         if month < 0 and tmonth > 0:  # 回撤阶段
-            #             if hwater < 0.8:
-            #                 if preprize > 1:return "高大回撤，低估值"
-            #                 elif preprize < 1 and preprize > -1:return "高大回撤，低估值"
-            #                 else:return "高大回撤，低估值，今日慎买"
-            #             else:
-            #                 if preprize > 1:return "高大回撤，高估值，今日可卖"
-            #                 elif preprize < 1 and preprize > -1:return "高大回撤，高估值"
-            #                 else:return "高大回撤，高估值，今日慎买"
-            #         if month < 0 and tmonth < 0:  # 持续下降阶段
-            #             if hwater < 0.8:
-            #                 if preprize > 1:return "高大下跌，低估值"
-            #                 elif preprize < 1 and preprize > -1:return "高大下跌，低估值"
-            #                 else:return "高大下跌，低估值，今日慎买"
-            #             else:
-            #                 return "高大下跌，高估值（不发生）"
-
+        def OPs_maker(hc, bd, week, month,tmonth, preprize, hwater,year):
             # version 3
             if hc+bd <20:
                 if week > 0 and month > 0 and year > 3: return "稳定上升，一次性大量投放"
@@ -302,13 +230,34 @@ class Fund_manager():
                     if bd<25:
                         return "低小，大量定投"
                     else: #bd>=25
-                        if hwater<0.85:
+                        if hwater<0.68:
                             if preprize<-1 or (week<1 and preprize<0.5):return "低大低，定投，今日大份买入"
                             else:return "低大低，定投"
+                        elif hwater>=0.68 and hwater<0.85:
+                            if month > 0 and tmonth > 0:
+                                if preprize < -1 or (week < 1 and preprize < 0.5):
+                                    return "低大中，上升，定投，今日中份买入"
+                                else:
+                                    return "低大中，上升, 定投"
+                            if month > 0 and tmonth < 0:  # 回升
+                                if preprize < -1 or (week < 1 and preprize < 0.5):
+                                    return "低大中，回升，定投，今日中份买入"
+                                else:
+                                    return "低大中，回升，定投"
+                            if month < 0 and tmonth > 0:  # 回撤
+                                if preprize > 1 or (week > 1 and preprize > 0.5):
+                                    return "低大中，回撤，今日可卖"
+                                else:
+                                    return "低大中，回撤"
+                            if month < 0 and tmonth < 0:  # 下跌
+                                if preprize > 1 or (week > 1 and preprize > 0.5):
+                                    return "低大中，下跌，今日可卖"
+                                else:
+                                    return "低大中，下跌"
                         else:#hwater>=85
-                            if preprize<-1 or (week<1 and preprize<0.5):return "低大高，定投，今日小份买入"
-                            elif preprize >1 or (week >1 and preprize>0.5):return "低大高，定投，今日可卖"
-                            else :return "低大高，定投"
+                            if preprize<-1 or (week<1 and preprize<0.5):return "低大高，今日小份买入"
+                            elif preprize >1 or (week >1 and preprize>0.5):return "低大高，今日可卖"
+                            else :return "低大高"
                 else: #hc>=20
                     if hwater < 0.68:
                         if preprize < -1 or (week<1 and preprize<0):
@@ -337,7 +286,7 @@ class Fund_manager():
 
 
         Comp['OPs'] = pd.Series(
-            map(OPs_maker, df['HC'], df['BD'], df['week'], df['month'],df['tmonth'], df['priceRate'], df['Hwater'], df['year']))
+            map(OPs_maker, df['HC'], df['BD'], df['week'], df['month'],df['tmonth'], df['priceRate'], df['water'], df['year']))
         return Comp
 
         # print(0)
@@ -445,7 +394,9 @@ class Fund_manager():
 
             else:
                 year_min_value = float(min(year_datas[1]))
-                year_water = (today_value - year_min_value) / (year_base_value - year_min_value)
+                if year_min_value == year_base_value:
+                    year_water = 1
+                else :year_water = (today_value - year_min_value) / (year_base_value - year_min_value)
             year_water = round(year_water, 4)
         else:
             year_water = -1000
@@ -466,7 +417,10 @@ class Fund_manager():
                 hyear_water = (today_value - hyear_base_value) / (hyear_max_value - hyear_base_value)
             else:
                 hyear_min_value = float(min(hyear_datas[1]))
-                hyear_water = (today_value - hyear_min_value) / (hyear_base_value - hyear_min_value)
+                if hyear_min_value == hyear_base_value:
+                    hyear_water = 1
+                else :
+                    hyear_water = (today_value - hyear_min_value) / (hyear_base_value - hyear_min_value)
             hyear_water = round(hyear_water, 4)
         else:
             hyear_water = -1000
@@ -479,6 +433,19 @@ class Fund_manager():
         jscontent = json.loads(content)
         rawdata = jscontent['data'][0]
         return rawdata
+
+    def getWorth_Valuation_forFindGood(self):  # 获取care_list的估值信息，格式是字典类型。
+        # 基金估值、获取基金当日涨幅情况
+        url = 'http://fund.ijijin.cn/data/Net/gz/all_priceRate_desc_0_0_1_9999_0_0_0_jsonp_g.html'
+        content = requests.get(url, headers=self.headers).text  # str类型
+        # 提取文本有效信息
+        content_ = content[2:-1]
+        jscontent = json.loads(content_)
+        rawdata = jscontent['data']  #
+        raw_data = pd.DataFrame(rawdata)
+        # out_put = pd.DataFrame()
+        raw_data.columns = raw_data.columns.str.replace('f','')
+        return raw_data.transpose()
 
     def getWorth_Valuation_forList(self, query_list):  # 获取care_list的估值信息，格式是字典类型。
         # 基金估值、获取基金当日涨幅情况
@@ -503,9 +470,14 @@ class Fund_manager():
     def getInfo_fromApp(self, fscode):  # 从天天基金的ａｐｐ上抓取的　　　返回字典
         # url = 'https://j5.dfcfw.com/sc/tfs/qt/v2.0.1/110003.json?rand=1621596866760'
         url = 'https://j5.dfcfw.com/sc/tfs/qt/v2.0.1/' + fscode + '.json'
-        content = requests.get(url, headers=self.headers).text
-        data1 = json.loads(content)  # str类型
         All_INFO = {}
+        try:
+            content = requests.get(url, headers=self.headers).text
+        except Exception as e:
+            print(e)
+            return All_INFO
+        try: data1 = json.loads(content)  # str类型
+        except Exception as e: return All_INFO
         JJXQ = data1["JJXQ"]["Datas"]
         JJJL = data1['JJJL']["Datas"][0]
         JJJLNEW = data1['JJJLNEW']["Datas"][0]
@@ -545,6 +517,7 @@ class Fund_manager():
         All_INFO['manageDay'] = JJJL['DAYS']
         All_INFO['workDay'] = JJJLNEW['MANGER'][0]['TOTALDAYS']
         All_INFO['yearHBL'] = JJJLNEW['MANGER'][0]['YIELDSE']
+        # All_INFO['yearHBL'] = math.nan
         All_INFO['JLlevel'] = JJJLNEW['MANGER'][0]['HJ_JN']
         # All_INFO['定投近１年收益(%)']=JJXQ['PTDT_Y'] #暂时把定投数据关闭
         # All_INFO['定投近２年收益(%)']=JJXQ['PTDT_TWY']
@@ -554,7 +527,7 @@ class Fund_manager():
                                   JJCC['InverstPosition']['fundStocks'][1]['GPJC'] + ',' + \
                                   JJCC['InverstPosition']['fundStocks'][2]['GPJC']
         except Exception as e:
-            print(e)
+            # print(e)
             All_INFO['GPstock'] = ''
         # df = pd.DataFrame(All_INFO)
         # print(0)
@@ -570,61 +543,6 @@ class Fund_manager():
         comp['score'] = (comp['manageHBL'] + comp['workDay'] + comp['yearHBL']) / 3
         return comp['score']
 
-    def StartFund_select(self, df):  # 通过硬性指标筛选好基金。
-        data = df
-        comp = pd.DataFrame()
-
-        def Stand_1(size, tyearZF, HC, XP, BD, FR_tyear, FR_year, FR_hyear):
-            if isGood(size, 1, 20) and isGood(tyearZF, 1, 80) and isGood(HC, 0, 25) and isGood(
-                    XP, 1, 1.5) and isGood(BD, 0, 30) and isGood(FR_tyear, 1, 80) and isGood(FR_year, 1, 80) and isGood(
-                FR_hyear, 1, 60):
-                return 1
-            else:
-                return 0
-
-        def Stand_2(size, tyearZF, HC, XP, FR_year):
-            if isGood(size, 1, 20) and isGood(tyearZF, 1, 80) and isGood(HC, 0,
-                                                                         25) and isGood(
-                XP, 1, 1.5) and isGood(FR_year, 1, 80):
-                return 1
-            else:
-                return 0
-
-        def STABLE_1(HC, BD):  # 在稳定波动和回测的情况下，涨幅越大越好
-            if isGood(HC, 0, 10) and isGood(BD, 0, 20):
-                return 1
-            else:
-                return 0
-
-        def STABLE_2(HC, BD):  # 在稳定波动和回测的情况下，涨幅越大越好
-            if isGood(HC, 0, 20) and isGood(BD, 0, 25):
-                return 1
-            else:
-                return 0
-
-        def EXCITED_1(HC, BD, tyearZF):  # 激进
-            if isGood(HC, 1, 25) and isGood(BD, 1, 30) and isGood(tyearZF, 1, 150):
-                return 1
-            else:
-                return 0
-
-        def EXCITED_2(HC, BD, tyearZF):  # 激进
-            if isGood(HC, 1, 20) and isGood(BD, 1, 25) and isGood(tyearZF, 1, 100):
-                return 1
-            else:
-                return 0
-
-        comp['STA_1'] = pd.Series(
-            map(Stand_1, data['asset'], data['tyear'], data['HC'], data['XP'], data['BD'],
-                data['FR_tyear'], data['FR_year'], data['FR_hyear']))
-        comp['STA_2'] = pd.Series(
-            map(Stand_2, data['asset'], data['tyear'], data['HC'], data['XP'],
-                data['FR_year']))
-        comp['STB_1'] = pd.Series(map(STABLE_1, data['HC'], data['BD']))
-        comp['STB_2'] = pd.Series(map(STABLE_2, data['HC'], data['BD']))
-        comp['EXC_1'] = pd.Series(map(EXCITED_1, data['HC'], data['BD'], data['tyear']))
-        comp['EXC_2'] = pd.Series(map(EXCITED_2, data['HC'], data['BD'], data['tyear']))
-        return comp
 
     def getFundScore(self, raw_data):  # 单独计算基金的指标
         data = raw_data
@@ -654,10 +572,13 @@ class Fund_manager():
         JJScore['BD'] = pd.Series(map(Nor_bd, data['BD']))
         JJScore['FR'] = FR['score']
         JJScore['S_JL'] = round(pd.Series(self.getManagerScore(raw_data)), 2)
+        # try: JJScore['S_JL'] = round(pd.Series(self.getManagerScore(raw_data)), 2)
+        # except Exception as e: JJScore['S_JL']  = 0
         JJScore['Score'] = round(JJScore['tyearZF'] + JJScore['XP'] * 3 + JJScore['FR'] * 2 + JJScore['S_JL'], 2)
 
         Out = pd.DataFrame()
         Out['Score'] = JJScore['Score']
+        Out['S_JL'] = JJScore['S_JL']
 
         return Out  # 只想返回这一个值
 
@@ -666,5 +587,19 @@ class Fund_manager():
 
 if __name__ == "__main__":
     FM = Fund_manager()
-    FM.Runscore('zhaojing')
+    FM.Runscore('zhaojing','Sheet1')
+    # FM.Runscore('dd_codes')
+    # FM.getWorth_Valuation_forFindGood()
+    # for i in range(8):
+    #     print(f'正在处理{i*1000}-{(i+1)*1000}的数据')
+    #     FM.FindGood(i)
+    # print('正在处理前1０００数据')
+    # FM.FindGood(0)
+    # print('正在处理1０００——2０００数据')
+    # FM.FindGood(1)
+    # print('正在处理４０００——６０００数据')
+    # FM.FindGood(4)
+    # print('正在处理６０００——８０００数据')
+    # FM.FindGood(6)
+
     # print(FM.getRZDF('163406'))
