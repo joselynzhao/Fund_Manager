@@ -228,7 +228,14 @@ class Fund_manager():
             else: #非债券类型
                 if hc<20:
                     if bd<25:
-                        return "低小，大量定投"
+                        if month > 0 and tmonth > 0:
+                            return "低小，上升，大量定投"
+                        if month > 0 and tmonth < 0:  # 回升
+                            return "低小，回升，大量定投"
+                        if month < 0 and tmonth > 0:  # 回撤
+                            return "低小，回撤，大量定投"
+                        if month < 0 and tmonth < 0:  # 下跌
+                            return "低小，下跌，大量定投"
                     else: #bd>=25
                         if hwater<0.68:
                             if preprize<-1 or (week<1 and preprize<0.5):return "低大低，定投，今日大份买入"
@@ -255,15 +262,53 @@ class Fund_manager():
                                 else:
                                     return "低大中，下跌"
                         else:#hwater>=85
-                            if preprize<-1 or (week<1 and preprize<0.5):return "低大高，今日小份买入"
-                            elif preprize >1 or (week >1 and preprize>0.5):return "低大高，今日可卖"
-                            else :return "低大高"
+                            if preprize<-1 or (week<1 and preprize<0.5):
+                                if month > 0 and tmonth > 0:
+                                    return "低大高，上升，今日小份买入"
+                                if month > 0 and tmonth < 0:  # 回升
+                                    return "低大高，回升，今日小份买入"
+                                if month < 0 and tmonth > 0:  # 回撤
+                                    return "低大高，回撤，今日小份买入"
+                                if month < 0 and tmonth < 0:  # 下跌
+                                    return "低大高，下跌，今日小份买入"
+                            elif preprize >1 or (week >1 and preprize>0.5):
+                                if month > 0 and tmonth > 0:
+                                    return "低大高，上升，今日可卖"
+                                if month > 0 and tmonth < 0:  # 回升
+                                    return "低大高，回升，今日可卖"
+                                if month < 0 and tmonth > 0:  # 回撤
+                                    return "低大高，回撤，今日可卖"
+                                if month < 0 and tmonth < 0:  # 下跌
+                                    return "低大高，下跌，今日可卖"
+                            else :
+                                if month > 0 and tmonth > 0:
+                                    return "低大高，上升"
+                                if month > 0 and tmonth < 0:  # 回升
+                                    return "低大高，回升"
+                                if month < 0 and tmonth > 0:  # 回撤
+                                    return "低大高，回撤"
+                                if month < 0 and tmonth < 0:  # 下跌
+                                    return "低大高，下跌"
                 else: #hc>=20
                     if hwater < 0.68:
                         if preprize < -1 or (week<1 and preprize<0):
-                            return "高大低，定投，今日大份买入"
+                            if month > 0 and tmonth > 0:
+                                return "高大低，定投，上升，今日大份买入"
+                            if month > 0 and tmonth < 0:  # 回升
+                                return "高大低，定投，回升，今日大份买入"
+                            if month < 0 and tmonth > 0:  # 回撤
+                                return "高大低，定投，回撤，今日大份买入"
+                            if month < 0 and tmonth < 0:  # 下跌
+                                return "高大低，定投，下跌，今日大份买入"
                         else:
-                            return "高大低，定投"
+                            if month > 0 and tmonth > 0:
+                                return "高大低，定投，上升"
+                            if month > 0 and tmonth < 0:  # 回升
+                                return "高大低，定投，回升"
+                            if month < 0 and tmonth > 0:  # 回撤
+                                return "高大低，定投，回撤"
+                            if month < 0 and tmonth < 0:  # 下跌
+                                return "高大低，定投，下跌"
                     elif hwater >= 0.68 and hwater < 0.85:
                         if month>0 and tmonth>0:
                             if preprize<-1 or (week<1 and preprize<0.5):return "高大中，上升，今日中份买入"
@@ -278,9 +323,34 @@ class Fund_manager():
                             if preprize>1 or (week >1 and preprize>0.5):return "高大中，下跌，今日可卖"
                             else: return "高大中，下跌"
                     else:  # hwater>=0.85
-                        if preprize<-1 or (week<1 and preprize<0.5) :return "高大高，今日小份买入"
-                        if preprize>1 or (week >1 and preprize>0.5):return "高大高，今日可卖"
-                        else: return "高大高"
+                        if preprize<-1 or (week<1 and preprize<0.5) :
+                            if month > 0 and tmonth > 0:
+                                return "高大高，上升，今日小份买入"
+                            if month > 0 and tmonth < 0:  # 回升
+                                return "高大高，回升，今日小份买入"
+                            if month < 0 and tmonth > 0:  # 回撤
+                                return "高大高，回撤，今日小份买入"
+                            if month < 0 and tmonth < 0:  # 下跌
+                                return "高大高，下跌，今日小份买入"
+
+                        if preprize>1 or (week >1 and preprize>0.5):
+                            if month > 0 and tmonth > 0:
+                                return "高大高，上升，今日可卖"
+                            if month > 0 and tmonth < 0:  # 回升
+                                return "高大高，回升，今日可卖"
+                            if month < 0 and tmonth > 0:  # 回撤
+                                return "高大高，回撤，今日可卖"
+                            if month < 0 and tmonth < 0:  # 下跌
+                                return "高大高，下跌，今日可卖"
+                        else:
+                            if month > 0 and tmonth > 0:
+                                return "高大高，上升"
+                            if month > 0 and tmonth < 0:  # 回升
+                                return "高大高，回升"
+                            if month < 0 and tmonth > 0:  # 回撤
+                                return "高大高，回撤"
+                            if month < 0 and tmonth < 0:  # 下跌
+                                return "高大高，下跌"
 
 
 
